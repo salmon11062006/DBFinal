@@ -3,34 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Reservation System - Guest</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Hotel Reservation System</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <header><h1>Hotel Reservation System</h1></header>
+    <header>
+        <h1>Hotel Reservation System</h1>
+    </header>
+
     <nav>
         <ul>
             <li><a href="index.html">Home</a></li>
-            <li><a href="reservations.html">New Reservation</a></li>
-            <li><a href="guest.html">Register Guest</a></li>
+            <li><a href="reservation.html">Add Reservation</a></li>
+            <li><a href="guest.html">Add Guest</a></li>
         </ul>
-    </nav> 
-    
-    <div class="container">
-        <form action="{{ url_for('submit_guest') }}" method="POST">
-            <h2 class="section-title">Guest Details</h2>
-            
-            <label for="name">Full Name:</label>
-            <input type="text" id="name" name="name" required><br><br>
+    </nav>
 
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required><br><br>
-            
-            <label for="phone">Phone Number:</label>
-            <input type="tel" id="phone" name="phone" required><br><br>
+    <div class="content">
+        <div class="container2">
+            <form action="/add_guest" method="post">
+            <h2>Add New Guest</h2>
+            <label for="guest_name">Name:</label>
+            <input type="text" id="guest_name" name="guest_name" required>
 
-            <button type="submit" class="cta-button" style="background-color: #007bff;">Register Guest</button>
-        </form>
+            <label for="guest_email">Email:</label>
+            <input type="email" id="guest_email" name="guest_email" required>
+
+            <label for="guest_phone">Phone:</label>
+            <input type="tel" id="guest_phone" name="guest_phone" required>
+
+            <br><br>
+            <button type="submit">Add Guest</button>
+        </div>
     </div>
 </body>
 </html>
