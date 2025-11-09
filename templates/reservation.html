@@ -57,6 +57,16 @@
             <button type="submit">Add Reservation</button>
         </div>
         
+        <div class="container">
+            <h2>Reservation List</h2>
+            <ul>
+                {% for r in reservation %}
+                    <li>{{ r.guest_name }} - {{ r.room_type }} - {{ r.check_in }} to {{ r.check_out }} - {{ r.no_of_guests }} guests - Paid via {{ r.pay_method }} {% if r.coupon %}- Coupon: {{ r.coupon }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
     </div>
+
 </body>
 </html>
