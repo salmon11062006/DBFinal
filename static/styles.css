@@ -103,5 +103,31 @@ nav ul li a:hover {
     color: #000000;
 }
 
+.guest-card {
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s;
+}
+
+.guest-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.guest-card h4 {
+    color: #667eea;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+.guest-card p {
+    margin: 5px 0;
+    color: #666;
+    font-size: 14px;
+}
+
 
         
