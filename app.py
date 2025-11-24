@@ -3,13 +3,7 @@ import mysql.connector
 
 app = Flask(__name__)
 
-# Database configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'Salomo531',  # Change this
-    'database': 'hotelreservation'
-}
+
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
