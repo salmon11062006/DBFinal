@@ -3,26 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotel Reservation System</title>
+    <title>Hotel Reservation System - Home</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <header>
-        <h1>Hotel Reservation System</h1>
-    </header>
+    <div class="container">
+        <header>
+            <h1>🏨 Hotel Reservation System</h1>
+        </header>
 
-    <nav>
-        <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/reservation">Add Reservation</a></li>
-            <li><a href="/guest">Add Guest</a></li>
-        </ul>
-    </nav>
+        <!-- Navigation Links -->
+        <nav class="navigation">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/reservations" class="nav-link">Reservations</a>
+            <a href="/guests" class="nav-link">Guests</a>
+        </nav>
 
-    <div class="content">
-        <div class="welcome-section">
-            <h2>Welcome to Our Hotel Reservation System</h2>
-            <p>Manage your hotel bookings and guest information efficiently. Use the navigation menu above to add new reservations or register new guests.</p>
+        <div class="page-content">
+            <div class="welcome-section">
+                <h2>Welcome to Our Hotel Reservation System</h2>
+                <p>Manage your hotel bookings and guest information efficiently.</p>
+                
+                <div style="margin-top: 30px;">
+                    <a href="/reservations" class="btn btn-primary" style="text-decoration: none; display: inline-block; margin-right: 10px;">View Reservations</a>
+                    <a href="/guests" class="btn btn-primary" style="text-decoration: none; display: inline-block;">Manage Guests</a>
+                </div>
+            </div>
         </div>
     </div>
 
