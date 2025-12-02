@@ -72,11 +72,28 @@ def update_guest(guest_id):
 def delete_guest(guest_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('DELETE FROM Guest WHERE guest_id = %s', (guest_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return jsonify({'message': 'Guest deleted successfully'})
+    
+    try:
+        # Check if guest has any reservations
+        cursor.execute('SELECT COUNT(*) FROM Reservation WHERE guest_id = %s', (guest_id,))
+        reservation_count = cursor.fetchone()[0]
+        
+        if reservation_count > 0:
+            return jsonify({
+                'error': f'Cannot delete guest. Guest has {reservation_count} active reservation(s). Please delete all reservations first.'
+            }), 400
+        
+        # If no reservations, proceed with deletion
+        cursor.execute('DELETE FROM Guest WHERE guest_id = %s', (guest_id,))
+        conn.commit()
+        return jsonify({'message': 'Guest deleted successfully'})
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
 
 # Room Types
 @app.route('/api/roomtypes', methods=['GET'])
