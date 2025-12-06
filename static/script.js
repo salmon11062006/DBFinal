@@ -3,6 +3,9 @@ let guests = [];
 let rooms = [];
 let coupons = [];
 let reservations = [];
+let allRooms = [];
+let roomTypes = [];
+let allCoupons = [];
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initReservationsPage();
     } else if (currentPage === '/guests') {
         initGuestsPage();
+    } else if (currentPage === '/rooms') {
+        initRoomsPage();
+    } else if (currentPage === '/coupons') {
+        initCouponsPage();
     }
 });
 
@@ -35,7 +42,23 @@ function initGuestsPage() {
     setupModal();
 }
 
-// Load guests
+// Initialize Rooms Page
+function initRoomsPage() {
+    loadRoomTypes();
+    loadAllRooms();
+    setupRoomTypeForm();
+    setupRoomForm();
+    setupRoomModals();
+}
+
+// Initialize Coupons Page
+function initCouponsPage() {
+    loadAllCoupons();
+    setupCouponForm();
+    setupCouponModal();
+}
+
+// Loading functions
 async function loadGuests() {
     try {
         const response = await fetch('/api/guests');
@@ -451,4 +474,421 @@ async function deleteGuest(guestId) {
 function formatDate(dateString) {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
+}
+
+// Room Types functions
+function setupRoomTypeForm() {
+    const form = document.getElementById('roomtype-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            name: document.getElementById('roomtype-name').value,
+            price_per_night: parseInt(document.getElementById('roomtype-price').value)
+        };
+
+        try {
+            const response = await fetch('/api/roomtypes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                alert('Room type created successfully!');
+                e.target.reset();
+                loadRoomTypes();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error creating room type');
+        }
+    });
+}
+
+function openEditRoomTypeModal(typeId) {
+    const type = roomTypes.find(t => t.type_id === typeId);
+    
+    if (type) {
+        document.getElementById('edit-roomtype-id').value = type.type_id;
+        document.getElementById('edit-roomtype-name').value = type.name;
+        document.getElementById('edit-roomtype-price').value = type.price_per_night;
+        document.getElementById('edit-roomtype-modal').classList.add('active');
+    }
+}
+
+function closeEditRoomTypeModal() {
+    document.getElementById('edit-roomtype-modal').classList.remove('active');
+}
+
+async function deleteRoomType(typeId) {
+    if (!confirm('Are you sure you want to delete this room type? This will fail if any rooms use this type.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/roomtypes/${typeId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Room type deleted successfully!');
+            loadRoomTypes();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting room type');
+    }
+}
+
+// Rooms functions
+async function loadAllRooms() {
+    try {
+        const response = await fetch('/api/rooms');
+        allRooms = await response.json();
+        displayAllRooms();
+    } catch (error) {
+        console.error('Error loading rooms:', error);
+    }
+}
+
+function displayAllRooms() {
+    const container = document.getElementById('rooms-list');
+    if (!container) return;
+    
+    if (allRooms.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No rooms created yet.</p></div>';
+        return;
+    }
+
+    container.innerHTML = allRooms.map(room => `
+        <div class="reservation-card">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">Room ${room.room_number}</h4>
+                    <p><strong>Type:</strong> ${room.room_type}</p>
+                    <p><strong>Price:</strong> ${room.price_per_night}/night</p>
+                    <p><strong>Status:</strong> <span class="status-badge ${room.room_status === 'Vacant' ? 'status-paid' : 'status-pending'}">${room.room_status}</span></p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="openEditRoomModal('${room.room_number}')">Edit</button>
+                    <button class="btn btn-danger" onclick="deleteRoom('${room.room_number}')">Delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function setupRoomForm() {
+    const form = document.getElementById('room-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            room_number: document.getElementById('room-number').value,
+            room_status: document.getElementById('room-status').value,
+            type_id: parseInt(document.getElementById('room-type-select').value)
+        };
+
+        try {
+            const response = await fetch('/api/rooms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                alert('Room created successfully!');
+                e.target.reset();
+                loadAllRooms();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error creating room');
+        }
+    });
+}
+
+function openEditRoomModal(roomNumber) {
+    const room = allRooms.find(r => r.room_number === roomNumber);
+    
+    if (room) {
+        document.getElementById('edit-room-number-hidden').value = room.room_number;
+        document.getElementById('edit-room-number').value = room.room_number;
+        document.getElementById('edit-room-type').value = room.type_id;
+        document.getElementById('edit-room-status').value = room.room_status;
+        document.getElementById('edit-room-modal').classList.add('active');
+    }
+}
+
+function closeEditRoomModal() {
+    document.getElementById('edit-room-modal').classList.remove('active');
+}
+
+async function deleteRoom(roomNumber) {
+    if (!confirm('Are you sure you want to delete this room? This will fail if the room has any reservations.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/rooms/${roomNumber}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Room deleted successfully!');
+            loadAllRooms();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting room');
+    }
+}
+
+function setupRoomModals() {
+    const editRoomTypeForm = document.getElementById('edit-roomtype-form');
+    if (editRoomTypeForm) {
+        editRoomTypeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const typeId = document.getElementById('edit-roomtype-id').value;
+            const data = {
+                name: document.getElementById('edit-roomtype-name').value,
+                price_per_night: parseInt(document.getElementById('edit-roomtype-price').value)
+            };
+
+            try {
+                const response = await fetch(`/api/roomtypes/${typeId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Room type updated successfully!');
+                    closeEditRoomTypeModal();
+                    loadRoomTypes();
+                } else {
+                    alert('Error updating room type');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating room type');
+            }
+        });
+    }
+
+    const editRoomForm = document.getElementById('edit-room-form');
+    if (editRoomForm) {
+        editRoomForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const roomNumber = document.getElementById('edit-room-number-hidden').value;
+            const data = {
+                room_status: document.getElementById('edit-room-status').value,
+                type_id: parseInt(document.getElementById('edit-room-type').value)
+            };
+
+            try {
+                const response = await fetch(`/api/rooms/${roomNumber}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Room updated successfully!');
+                    closeEditRoomModal();
+                    loadAllRooms();
+                } else {
+                    alert('Error updating room');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating room');
+            }
+        });
+    }
+}
+
+// Coupons functions
+async function loadAllCoupons() {
+    try {
+        const response = await fetch('/api/coupons');
+        allCoupons = await response.json();
+        displayAllCoupons();
+    } catch (error) {
+        console.error('Error loading coupons:', error);
+    }
+}
+
+function displayAllCoupons() {
+    const container = document.getElementById('coupons-list');
+    if (!container) return;
+    
+    if (allCoupons.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No coupons created yet.</p></div>';
+        return;
+    }
+
+    container.innerHTML = allCoupons.map(coupon => {
+        const isExpired = new Date(coupon.expired_date) < new Date();
+        const isActive = !isExpired && coupon.qty > 0;
+        
+        return `
+        <div class="reservation-card">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div style="flex: 1;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">${coupon.coupon_id}</h4>
+                    <p><strong>Discount:</strong> ${coupon.discount_amt}% off</p>
+                    <p><strong>Quantity Remaining:</strong> ${coupon.qty}</p>
+                    <p><strong>Valid From:</strong> ${formatDate(coupon.start_date)}</p>
+                    <p><strong>Expires:</strong> ${formatDate(coupon.expired_date)}</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="openEditCouponModal('${coupon.coupon_id}')">Edit</button>
+                    <button class="btn btn-danger" onclick="deleteCoupon('${coupon.coupon_id}')">Delete</button>
+                </div>
+            </div>
+        </div>
+    `}).join('');
+}
+
+function setupCouponForm() {
+    const form = document.getElementById('coupon-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            coupon_id: document.getElementById('coupon-id').value,
+            discount_amt: parseInt(document.getElementById('coupon-discount').value),
+            qty: parseInt(document.getElementById('coupon-qty').value),
+            start_date: document.getElementById('coupon-start').value,
+            expired_date: document.getElementById('coupon-expire').value
+        };
+
+        // Validate dates
+        if (new Date(data.expired_date) <= new Date(data.start_date)) {
+            alert('Expiry date must be after start date');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/coupons', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                alert('Coupon created successfully!');
+                e.target.reset();
+                loadAllCoupons();
+            } else {
+                const error = await response.json();
+                alert('Error: ' + error.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error creating coupon');
+        }
+    });
+}
+
+function openEditCouponModal(couponId) {
+    const coupon = allCoupons.find(c => c.coupon_id === couponId);
+    
+    if (coupon) {
+        document.getElementById('edit-coupon-id-hidden').value = coupon.coupon_id;
+        document.getElementById('edit-coupon-id').value = coupon.coupon_id;
+        document.getElementById('edit-coupon-discount').value = coupon.discount_amt;
+        document.getElementById('edit-coupon-qty').value = coupon.qty;
+        document.getElementById('edit-coupon-start').value = coupon.start_date;
+        document.getElementById('edit-coupon-expire').value = coupon.expired_date;
+        document.getElementById('edit-coupon-modal').classList.add('active');
+    }
+}
+
+function closeEditCouponModal() {
+    document.getElementById('edit-coupon-modal').classList.remove('active');
+}
+
+async function deleteCoupon(couponId) {
+    if (!confirm('Are you sure you want to delete this coupon? This will fail if the coupon is used in any transactions.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/coupons/${couponId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('Coupon deleted successfully!');
+            loadAllCoupons();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting coupon');
+    }
+}
+
+function setupCouponModal() {
+    const editCouponForm = document.getElementById('edit-coupon-form');
+    if (editCouponForm) {
+        editCouponForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const couponId = document.getElementById('edit-coupon-id-hidden').value;
+            const data = {
+                discount_amt: parseInt(document.getElementById('edit-coupon-discount').value),
+                qty: parseInt(document.getElementById('edit-coupon-qty').value),
+                start_date: document.getElementById('edit-coupon-start').value,
+                expired_date: document.getElementById('edit-coupon-expire').value
+            };
+
+            try {
+                const response = await fetch(`/api/coupons/${couponId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    alert('Coupon updated successfully!');
+                    closeEditCouponModal();
+                    loadAllCoupons();
+                } else {
+                    alert('Error updating coupon');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error updating coupon');
+            }
+        });
+    }
 }

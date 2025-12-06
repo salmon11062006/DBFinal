@@ -8,7 +8,7 @@ app = Flask(__name__)
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Salomo531',  # Change this
+    'password': 'Salomo531',
     'database': 'hotelreservation'
 }
 
@@ -27,6 +27,140 @@ def reservations_page():
 @app.route('/guests')
 def guests_page():
     return render_template('guest.html')
+
+@app.route('/coupons')
+def coupons_page():
+    return render_template('coupons.html')
+
+@app.route('/api/roomtypes', methods=['GET'])
+def get_room_types():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM RoomType')
+    room_types = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(room_types)
+
+# Rooms
+@app.route('/api/rooms', methods=['GET'])
+def get_all_rooms():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT r.room_number, r.room_status, rt.type_id, rt.name as room_type, rt.price_per_night
+        FROM Room r
+        JOIN RoomType rt ON r.type_id = rt.type_id
+        ORDER BY r.room_number
+    ''')
+    rooms = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(rooms)
+
+# Available Rooms
+@app.route('/api/rooms/available', methods=['GET'])
+def get_available_rooms():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
+        FROM Room r
+        JOIN RoomType rt ON r.type_id = rt.type_id
+        WHERE r.room_status = 'Vacant'
+    ''')
+    rooms = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(rooms)
+
+# Coupons
+@app.route('/api/coupons', methods=['GET'])
+def get_coupons():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT * FROM Coupon 
+        ORDER BY expired_date DESC
+    ''')
+    coupons = cursor.fetchall()
+    
+    # Convert date objects to strings
+    for coupon in coupons:
+        coupon['start_date'] = coupon['start_date'].strftime('%Y-%m-%d')
+        coupon['expired_date'] = coupon['expired_date'].strftime('%Y-%m-%d')
+    
+    cursor.close()
+    conn.close()
+    return jsonify(coupons)
+
+@app.route('/api/coupons', methods=['POST'])
+def create_coupon():
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO Coupon (coupon_id, discount_amt, qty, start_date, expired_date)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (data['coupon_id'], data['discount_amt'], data['qty'], 
+              data['start_date'], data['expired_date']))
+        conn.commit()
+        return jsonify({'message': 'Coupon created successfully'}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/coupons/<coupon_id>', methods=['PUT'])
+def update_coupon(coupon_id):
+    data = request.json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE Coupon 
+            SET discount_amt = %s, qty = %s, start_date = %s, expired_date = %s
+            WHERE coupon_id = %s
+        ''', (data['discount_amt'], data['qty'], data['start_date'], 
+              data['expired_date'], coupon_id))
+        conn.commit()
+        return jsonify({'message': 'Coupon updated successfully'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/coupons/<coupon_id>', methods=['DELETE'])
+def delete_coupon(coupon_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if coupon is used in any transactions
+        cursor.execute('SELECT COUNT(*) FROM Transaction WHERE coupon_id = %s', (coupon_id,))
+        usage_count = cursor.fetchone()[0]
+        
+        if usage_count > 0:
+            return jsonify({
+                'error': f'Cannot delete coupon. It is used in {usage_count} transaction(s).'
+            }), 400
+        
+        cursor.execute('DELETE FROM Coupon WHERE coupon_id = %s', (coupon_id,))
+        conn.commit()
+        return jsonify({'message': 'Coupon deleted successfully'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
 
 # Guest routes
 @app.route('/api/guests', methods=['GET'])
@@ -94,47 +228,6 @@ def delete_guest(guest_id):
     finally:
         cursor.close()
         conn.close()
-
-# Room Types
-@app.route('/api/roomtypes', methods=['GET'])
-def get_room_types():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('SELECT * FROM RoomType')
-    room_types = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(room_types)
-
-# Available Rooms
-@app.route('/api/rooms/available', methods=['GET'])
-def get_available_rooms():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
-        FROM Room r
-        JOIN RoomType rt ON r.type_id = rt.type_id
-        WHERE r.room_status = 'Vacant'
-    ''')
-    rooms = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(rooms)
-
-# Coupons
-@app.route('/api/coupons', methods=['GET'])
-def get_coupons():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
-        SELECT * FROM Coupon 
-        WHERE expired_date >= CURDATE() AND qty > 0
-    ''')
-    coupons = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(coupons)
 
 # Reservations CRUD
 @app.route('/api/reservations', methods=['GET'])

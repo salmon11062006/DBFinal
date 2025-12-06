@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Reservation System - Coupons</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏨 Hotel Reservation System</h1>
+        </header>
+
+        <nav class="navigation">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/reservations" class="nav-link">Reservations</a>
+            <a href="/guests" class="nav-link">Guests</a>
+            <a href="/coupons" class="nav-link active">Coupons</a>
+        </nav>
+
+        <div class="page-content">
+            <h2>Manage Coupons</h2>
+            <form id="coupon-form" style="margin-bottom: 30px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Coupon Code:</label>
+                        <input type="text" id="coupon-id" placeholder="e.g., SUMMER2024" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Discount Amount (%):</label>
+                        <input type="number" id="coupon-discount" min="1" max="100" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="coupon-qty" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date:</label>
+                        <input type="date" id="coupon-start" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Expiry Date:</label>
+                    <input type="date" id="coupon-expire" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Add Coupon</button>
+            </form>
+
+            <h3>Existing Coupons</h3>
+            <div id="coupons-list"></div>
+        </div>
+    </div>
+
+    <!-- Edit Coupon Modal -->
+    <div id="edit-coupon-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditCouponModal()">&times;</span>
+            <h2>Edit Coupon</h2>
+            <form id="edit-coupon-form">
+                <input type="hidden" id="edit-coupon-id-hidden">
+                
+                <div class="form-group">
+                    <label>Coupon Code:</label>
+                    <input type="text" id="edit-coupon-id" disabled>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Discount Amount (%):</label>
+                        <input type="number" id="edit-coupon-discount" min="1" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity:</label>
+                        <input type="number" id="edit-coupon-qty" min="0" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date:</label>
+                        <input type="date" id="edit-coupon-start" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date:</label>
+                        <input type="date" id="edit-coupon-expire" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Update Coupon</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
