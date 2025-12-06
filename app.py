@@ -147,19 +147,19 @@ def get_reservations():
             SELECT 
                 r.reservation_id, r.check_in_date, r.check_out_date, 
                 r.number_of_guests, r.room_number,
-                COALESCE(g.name, 'Unknown Guest') as guest_name, 
-                COALESCE(g.email, 'N/A') as email, 
-                COALESCE(g.phone, 'N/A') as phone,
-                COALESCE(t.transaction_amt, 0) as transaction_amt, 
-                COALESCE(t.pay_status, 'Unknown') as pay_status, 
-                COALESCE(t.pay_method, 'N/A') as pay_method,
-                COALESCE(rt.name, 'Unknown') as room_type
+                g.name as guest_name, 
+                g.email as email, 
+                g.phone as phone,
+                t.transaction_amt as transaction_amt, 
+                t.pay_status as pay_status, 
+                t.pay_method as pay_method,
+                rt.name as room_type
             FROM Reservation r
             LEFT JOIN Guest g ON r.guest_id = g.guest_id
             LEFT JOIN Transaction t ON r.transaction_id = t.transaction_id
             LEFT JOIN Room rm ON r.room_number = rm.room_number
             LEFT JOIN RoomType rt ON rm.type_id = rt.type_id
-            ORDER BY r.reservation_id DESC
+            ORDER BY r.reservation_id
         ''')
         reservations = cursor.fetchall()
         
