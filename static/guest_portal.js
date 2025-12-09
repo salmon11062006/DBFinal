@@ -41,17 +41,39 @@ function setupGuestInfoForm() {
         };
 
         try {
-            const response = await fetch('/api/guests', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            let response;
+            
+            // If guest exists, update; otherwise create new
+            if (currentGuest && currentGuest.guest_id) {
+                response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    // Update current guest data
+                    currentGuest.name = data.name;
+                    currentGuest.email = data.email;
+                    currentGuest.phone = data.phone;
+                    alert('Information updated successfully!');
+                }
+            } else {
+                // Create new guest
+                response = await fetch('/api/guests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    currentGuest = { ...data, guest_id: result.guest_id };
+                }
+            }
 
             if (response.ok) {
-                const result = await response.json();
-                currentGuest = { ...data, guest_id: result.guest_id };
-                
-                // Display guest info
+                // Display updated guest info
                 document.getElementById('display-guest-name').textContent = data.name;
                 document.getElementById('display-guest-email').textContent = data.email;
                 document.getElementById('display-guest-phone').textContent = data.phone;
@@ -59,18 +81,27 @@ function setupGuestInfoForm() {
                 document.getElementById('guest-info-form').style.display = 'none';
                 document.getElementById('guest-info-display').style.display = 'block';
             } else {
-                alert('Error registering. Please try again.');
+                alert('Error saving information. Please try again.');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error registering. Please try again.');
+            alert('Error saving information. Please try again.');
         }
     });
 }
 
 function editGuestInfo() {
+    // Pre-fill the form with current guest data
+    document.getElementById('guest-name').value = currentGuest.name;
+    document.getElementById('guest-email').value = currentGuest.email;
+    document.getElementById('guest-phone').value = currentGuest.phone;
+    
+    // Show form, hide display
     document.getElementById('guest-info-form').style.display = 'block';
     document.getElementById('guest-info-display').style.display = 'none';
+    
+    // Scroll to form
+    document.getElementById('guest-info-form').scrollIntoView({ behavior: 'smooth' });
 }
 
 function showBookingForm() {
