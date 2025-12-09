@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Booking Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guest_portal.css') }}">
+</head>
+<body>
+    <div class="portal-container">
+        <header class="portal-header">
+            <h1>🏨 Luxury Hotel Booking</h1>
+            <p>Book your perfect stay with us</p>
+        </header>
+
+        <!-- Guest Information Section -->
+        <div class="booking-section">
+            <h2>Your Information</h2>
+            <div id="guest-info-display" style="display: none;">
+                <div class="info-card">
+                    <p><strong>Name:</strong> <span id="display-guest-name"></span></p>
+                    <p><strong>Email:</strong> <span id="display-guest-email"></span></p>
+                    <p><strong>Phone:</strong> <span id="display-guest-phone"></span></p>
+                    <button class="btn btn-secondary" onclick="editGuestInfo()">Edit Info</button>
+                    <button class="btn btn-primary" onclick="showBookingForm()">Continue to Booking</button>
+                </div>
+            </div>
+
+            <form id="guest-info-form" class="booking-form">
+                <h3>Register as Guest</h3>
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="guest-name" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="guest-email" placeholder="john@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="guest-phone" placeholder="+1234567890" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Continue</button>
+            </form>
+        </div>
+
+        <!-- Room Selection Section -->
+        <div class="booking-section" id="room-selection-section" style="display: none;">
+            <h2>Select Your Room</h2>
+            <div id="available-rooms-list"></div>
+        </div>
+
+        <!-- Booking Details Section -->
+        <div class="booking-section" id="booking-details-section" style="display: none;">
+            <h2>Booking Details</h2>
+            <form id="booking-form" class="booking-form">
+                <div class="selected-room-info" id="selected-room-info"></div>
+
+                <div class="form-group">
+                    <label>Check-in Date *</label>
+                    <input type="date" id="booking-checkin" required>
+                </div>
+                <div class="form-group">
+                    <label>Check-out Date *</label>
+                    <input type="date" id="booking-checkout" required>
+                </div>
+                <div class="form-group">
+                    <label>Number of Guests *</label>
+                    <input type="number" id="booking-guests" min="1" max="10" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Coupon Code (Optional)</label>
+                    <input type="text" id="booking-coupon" placeholder="Enter coupon code">
+                    <button type="button" class="btn btn-secondary" onclick="applyCoupon()">Apply</button>
+                </div>
+
+                <div class="price-summary" id="price-summary" style="display: none;">
+                    <h3>Price Summary</h3>
+                    <p><strong>Room Rate:</strong> $<span id="room-rate">0</span> / night</p>
+                    <p><strong>Number of Nights:</strong> <span id="num-nights">0</span></p>
+                    <p><strong>Subtotal:</strong> $<span id="subtotal">0</span></p>
+                    <p class="discount-line" id="discount-line" style="display: none;">
+                        <strong>Discount:</strong> -$<span id="discount-amount">0</span> (<span id="discount-percent">0</span>%)
+                    </p>
+                    <p class="total-price"><strong>Total:</strong> $<span id="total-price">0</span></p>
+                </div>
+
+                <button type="button" class="btn btn-secondary" onclick="backToRoomSelection()">Back</button>
+                <button type="submit" class="btn btn-primary">Proceed to Payment</button>
+            </form>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="booking-section" id="payment-section" style="display: none;">
+            <h2>Payment</h2>
+            <form id="payment-form" class="booking-form">
+                <div class="booking-summary" id="booking-summary"></div>
+
+                <h3>Payment Method</h3>
+                <div class="payment-methods">
+                    <label class="payment-method">
+                        <input type="radio" name="payment-method" value="Credit Card" checked>
+                        <span>💳 Credit Card</span>
+                    </label>
+                    <label class="payment-method">
+                        <input type="radio" name="payment-method" value="Debit Card">
+                        <span>💳 Debit Card</span>
+                    </label>
+                    <label class="payment-method">
+                        <input type="radio" name="payment-method" value="Cash">
+                        <span>💵 Cash (Pay at Hotel)</span>
+                    </label>
+                </div>
+
+                <button type="button" class="btn btn-secondary" onclick="backToBooking()">Back</button>
+                <button type="submit" class="btn btn-success">Complete Booking</button>
+            </form>
+        </div>
+
+        <!-- Confirmation Section -->
+        <div class="booking-section confirmation-section" id="confirmation-section" style="display: none;">
+            <div class="confirmation-icon">✅</div>
+            <h2>Booking Confirmed!</h2>
+            <div id="confirmation-details"></div>
+            <button class="btn btn-primary" onclick="location.reload()">Make Another Booking</button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='guest_portal.js') }}"></script>
+</body>
+</html>
