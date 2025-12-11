@@ -137,7 +137,29 @@ input:focus {
     transform: translateY(-2px);
 }
 
-/* Room Cards */
+/* Reservation Cards */
+.reservation-card {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s;
+    background: white;
+}
+
+.reservation-card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.reservation-card h4 {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.reservation-card p {
+    margin: 8px 0;
+    color: #333;
+}
 .room-card {
     border: 2px solid #e0e0e0;
     border-radius: 12px;
