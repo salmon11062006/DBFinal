@@ -221,7 +221,6 @@ input:focus {
 
 .price-summary p {
     display: flex;
-    justify-content: space-between;
     margin: 10px 0;
     font-size: 16px;
 }
