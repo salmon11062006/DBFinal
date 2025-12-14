@@ -74,9 +74,14 @@
         <!-- Logged In User Info -->
         <div class="booking-section" id="logged-in-section" style="display: none;">
             <div class="info-card">
-                <h3>Welcome back, <span id="logged-guest-name"></span>! 👋</h3>
-                <p><strong>Email:</strong> <span id="logged-guest-email"></span></p>
-                <p><strong>Phone:</strong> <span id="logged-guest-phone"></span></p>
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h3>Welcome back, <span id="logged-guest-name"></span>! 👋</h3>
+                        <p><strong>Email:</strong> <span id="logged-guest-email"></span></p>
+                        <p><strong>Phone:</strong> <span id="logged-guest-phone"></span></p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="openEditGuestModal()" style="margin-left: 20px;">Edit Info</button>
+                </div>
                 <div style="margin-top: 20px; display: flex; gap: 10px;">
                     <button class="btn btn-primary" onclick="showBookingForm()">Make a Reservation</button>
                     <button class="btn btn-secondary" onclick="viewMyBookings()">My Bookings</button>
@@ -90,6 +95,63 @@
             <h2>My Bookings</h2>
             <div id="my-bookings-list"></div>
             <button class="btn btn-secondary" onclick="backToLoggedIn()">Back</button>
+        </div>
+
+        <!-- Edit Reservation Modal -->
+        <div id="edit-reservation-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditReservationModal()">&times;</span>
+                <h2>Edit Reservation</h2>
+                <form id="edit-reservation-form">
+                    <input type="hidden" id="edit-res-id">
+                    
+                    <div class="form-group">
+                        <label>Room (Current)</label>
+                        <input type="text" id="edit-res-room" disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Check-in Date *</label>
+                        <input type="date" id="edit-res-checkin" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Check-out Date *</label>
+                        <input type="date" id="edit-res-checkout" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Number of Guests *</label>
+                        <input type="number" id="edit-res-guests" min="1" max="10" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Reservation</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditReservationModal()">Cancel</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Edit Guest Info Modal -->
+        <div id="edit-guest-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeEditGuestModal()">&times;</span>
+                <h2>Edit My Information</h2>
+                <form id="edit-guest-form">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" id="edit-guest-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" id="edit-guest-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="tel" id="edit-guest-phone" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Information</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeEditGuestModal()">Cancel</button>
+                </form>
+            </div>
         </div>
 
         <!-- Room Selection Section -->
@@ -124,13 +186,13 @@
 
                 <div class="price-summary" id="price-summary" style="display: none;">
                     <h3>Price Summary</h3>
-                    <p><strong>Room Rate: </strong> $<span id="room-rate">0</span> /night</p>
-                    <p><strong>Number of Nights: </strong> <span id="num-nights">0</span></p>
-                    <p><strong>Subtotal: </strong> $<span id="subtotal">0</span></p>
+                    <p><strong>Room Rate:</strong> $<span id="room-rate">0</span> / night</p>
+                    <p><strong>Number of Nights:</strong> <span id="num-nights">0</span></p>
+                    <p><strong>Subtotal:</strong> $<span id="subtotal">0</span></p>
                     <p class="discount-line" id="discount-line" style="display: none;">
-                        <strong>Discount: </strong> -$<span id="discount-amount">0</span> (<span id="discount-percent">0</span>%)
+                        <strong>Discount:</strong> -$<span id="discount-amount">0</span> (<span id="discount-percent">0</span>%)
                     </p>
-                    <p class="total-price"><strong>Total: </strong> $<span id="total-price">0</span></p>
+                    <p class="total-price"><strong>Total:</strong> $<span id="total-price">0</span></p>
                 </div>
 
                 <button type="button" class="btn btn-secondary" onclick="backToRoomSelection()">Back</button>

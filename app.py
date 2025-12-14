@@ -222,6 +222,35 @@ def cancel_reservation(reservation_id):
         cursor.close()
         conn.close()
 
+# Update Reservation
+@app.route('/api/reservations/<int:reservation_id>', methods=['PUT'])
+def update_reservation(reservation_id):
+    data = request.json
+    print(f"Updating reservation {reservation_id} with data: {data}")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            UPDATE Reservation 
+            SET check_in_date = %s, check_out_date = %s, number_of_guests = %s
+            WHERE reservation_id = %s
+        ''', (data['check_in_date'], data['check_out_date'], data['number_of_guests'], reservation_id))
+        
+        conn.commit()
+        print(f"Reservation {reservation_id} updated successfully")
+        return jsonify({'message': 'Reservation updated successfully'})
+    
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating reservation: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
+
 # Coupons (Active only)
 @app.route('/api/coupons', methods=['GET'])
 def get_coupons():

@@ -12,29 +12,44 @@ let bookingDetails = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Page loaded, initializing...');
+    
+    // Check if all forms exist
+    console.log('guest-info-form exists:', !!document.getElementById('guest-info-form'));
+    console.log('login-form exists:', !!document.getElementById('login-form'));
+    console.log('booking-form exists:', !!document.getElementById('booking-form'));
+    
     setupGuestInfoForm();
     setupLoginForm();
     setupBookingForm();
     setupPaymentForm();
     setupPaymentMethodToggle();
+    setupEditGuestForm();
+    setupEditReservationForm();
     setMinDate();
+    
+    console.log('Initialization complete');
 });
 
 // Show/Hide sections
 function showLogin() {
+    console.log('Showing login section');
     document.getElementById('auth-selection').style.display = 'none';
     document.getElementById('login-section').style.display = 'block';
     document.getElementById('login-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function showRegister() {
+    console.log('Showing register section');
     document.getElementById('auth-selection').style.display = 'none';
     document.getElementById('register-section').style.display = 'block';
     document.getElementById('guest-info-form').style.display = 'block';
+    document.getElementById('guest-info-display').style.display = 'none';
     document.getElementById('register-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function backToAuthSelection() {
+    console.log('Going back to auth selection');
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('register-section').style.display = 'none';
     document.getElementById('auth-selection').style.display = 'block';
@@ -43,6 +58,7 @@ function backToAuthSelection() {
 
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
+        console.log('Logging out');
         location.reload();
     }
 }
@@ -50,6 +66,8 @@ function logout() {
 // Login Form
 function setupLoginForm() {
     const form = document.getElementById('login-form');
+    if (!form) return;
+    
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -108,6 +126,8 @@ function setMinDate() {
 // Guest Information Form
 function setupGuestInfoForm() {
     const form = document.getElementById('guest-info-form');
+    if (!form) return;
+    
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -165,12 +185,16 @@ function setupGuestInfoForm() {
                 document.getElementById('display-guest-email').textContent = data.email;
                 document.getElementById('display-guest-phone').textContent = data.phone;
                 
+                // Hide form, show display
                 document.getElementById('guest-info-form').style.display = 'none';
                 document.getElementById('guest-info-display').style.display = 'block';
                 
                 if (isUpdate) {
                     alert('Information updated successfully!');
                 }
+                
+                // Scroll to display
+                document.getElementById('guest-info-display').scrollIntoView({ behavior: 'smooth' });
             } else {
                 console.error('Error response:', result);
                 alert('Error: ' + (result.error || 'Please try again.'));
@@ -305,6 +329,146 @@ async function cancelBooking(reservationId) {
         console.error('Error:', error);
         alert('Error cancelling booking. Please try again.');
     }
+}
+
+// ========== EDIT GUEST INFORMATION ==========
+function openEditGuestModal() {
+    if (!currentGuest) {
+        alert('Please login first');
+        return;
+    }
+    
+    // Pre-fill form with current data
+    document.getElementById('edit-guest-name').value = currentGuest.name;
+    document.getElementById('edit-guest-email').value = currentGuest.email;
+    document.getElementById('edit-guest-phone').value = currentGuest.phone;
+    
+    // Show modal
+    document.getElementById('edit-guest-modal').classList.add('active');
+}
+
+function closeEditGuestModal() {
+    document.getElementById('edit-guest-modal').classList.remove('active');
+}
+
+function setupEditGuestForm() {
+    const form = document.getElementById('edit-guest-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            name: document.getElementById('edit-guest-name').value,
+            email: document.getElementById('edit-guest-email').value,
+            phone: document.getElementById('edit-guest-phone').value
+        };
+        
+        console.log('Updating guest info:', data);
+        
+        try {
+            const response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                // Update local guest data
+                currentGuest.name = data.name;
+                currentGuest.email = data.email;
+                currentGuest.phone = data.phone;
+                
+                // Update display
+                document.getElementById('logged-guest-name').textContent = data.name;
+                document.getElementById('logged-guest-email').textContent = data.email;
+                document.getElementById('logged-guest-phone').textContent = data.phone;
+                
+                alert('Information updated successfully!');
+                closeEditGuestModal();
+            } else {
+                alert('Error: ' + (result.error || 'Could not update information'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating information. Please try again.');
+        }
+    });
+}
+
+// ========== EDIT RESERVATION ==========
+function openEditReservationModal(reservationId, booking) {
+    console.log('Opening edit modal for reservation:', reservationId);
+    
+    // Pre-fill form with current booking data
+    document.getElementById('edit-res-id').value = reservationId;
+    document.getElementById('edit-res-room').value = `${booking.room_type} - Room ${booking.room_number}`;
+    document.getElementById('edit-res-checkin').value = booking.check_in_date;
+    document.getElementById('edit-res-checkout').value = booking.check_out_date;
+    document.getElementById('edit-res-guests').value = booking.number_of_guests;
+    
+    // Set min date to today
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('edit-res-checkin').min = today;
+    document.getElementById('edit-res-checkout').min = today;
+    
+    // Show modal
+    document.getElementById('edit-reservation-modal').classList.add('active');
+}
+
+function closeEditReservationModal() {
+    document.getElementById('edit-reservation-modal').classList.remove('active');
+}
+
+function setupEditReservationForm() {
+    const form = document.getElementById('edit-reservation-form');
+    if (!form) return;
+    
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const reservationId = document.getElementById('edit-res-id').value;
+        const checkIn = document.getElementById('edit-res-checkin').value;
+        const checkOut = document.getElementById('edit-res-checkout').value;
+        const guests = document.getElementById('edit-res-guests').value;
+        
+        // Validate dates
+        if (new Date(checkOut) <= new Date(checkIn)) {
+            alert('Check-out date must be after check-in date');
+            return;
+        }
+        
+        const data = {
+            check_in_date: checkIn,
+            check_out_date: checkOut,
+            number_of_guests: parseInt(guests)
+        };
+        
+        console.log('Updating reservation:', reservationId, data);
+        
+        try {
+            const response = await fetch(`/api/reservations/${reservationId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('Reservation updated successfully!');
+                closeEditReservationModal();
+                viewMyBookings(); // Reload bookings
+            } else {
+                alert('Error: ' + (result.error || 'Could not update reservation'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating reservation. Please try again.');
+        }
+    });
 }
 
 // Load available rooms
