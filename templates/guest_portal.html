@@ -94,7 +94,17 @@
         <!-- Room Selection -->
         <div class="booking-section" id="rooms-section" style="display: none;">
             <h2>Select Your Room</h2>
-            <div id="rooms-list"></div>
+            <div class="form-group">
+                <label>Check-in Date *</label>
+                <input type="date" id="search-checkin-date" required>
+            </div>
+            <div class="form-group">
+                <label>Check-out Date *</label>
+                <input type="date" id="search-checkout-date" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="searchAvailableRooms()">Search Available Rooms</button>
+            <div id="rooms-list" style="margin-top: 20px;"></div>
+            <button type="button" class="btn btn-secondary" onclick="backToDashboard()">Back to Dashboard</button>
         </div>
 
         <!-- Booking Details -->
@@ -135,7 +145,7 @@
                     <p class="total-price"><strong>Total:</strong> $<span id="total-cost">0</span></p>
                 </div>
 
-                <button type="button" class="btn btn-secondary" onclick="backToRooms()">Back</button>
+                <button type="button" class="btn btn-secondary" onclick="backToRooms()">Back to Rooms</button>
                 <button type="submit" class="btn btn-primary">Proceed to Payment</button>
             </form>
         </div>

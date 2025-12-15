@@ -103,15 +103,34 @@ def update_guest(guest_id):
 # Get Available Rooms
 @app.route('/api/rooms/available', methods=['GET'])
 def get_available_rooms():
+    check_in = request.args.get('check_in_date')
+    check_out = request.args.get('check_out_date')
+    
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute('''
-            SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
-            FROM Room r
-            JOIN Room_Type rt ON r.type_id = rt.type_id
-            WHERE r.room_status = 'Available'
-        ''')
+        if check_in and check_out:
+            # Get rooms that don't have conflicting reservations
+            cursor.execute('''
+                SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
+                FROM Room r
+                JOIN Room_Type rt ON r.type_id = rt.type_id
+                WHERE r.room_status != 'Maintenance'
+                AND r.room_number NOT IN (
+                    SELECT room_number 
+                    FROM Reservation 
+                    WHERE reservation_status = 'Confirmed'
+                    AND NOT (check_out_date <= %s OR check_in_date >= %s)
+                )
+            ''', (check_in, check_out))
+        else:
+            # If no dates provided, return all non-maintenance rooms
+            cursor.execute('''
+                SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
+                FROM Room r
+                JOIN Room_Type rt ON r.type_id = rt.type_id
+                WHERE r.room_status != 'Maintenance'
+            ''')
         rooms = cursor.fetchall()
         return jsonify(rooms)
     except Exception as e:
@@ -222,13 +241,27 @@ def create_reservation():
     cursor = conn.cursor()
     
     try:
-        # Check if room is available
+        # Check if room exists and is not under maintenance
         cursor.execute('SELECT room_status, type_id FROM Room WHERE room_number = %s', (data['room_number'],))
         room_result = cursor.fetchone()
-        if not room_result or room_result[0] != 'Available':
-            return jsonify({'error': 'Room is not available'}), 400
+        if not room_result:
+            return jsonify({'error': 'Room does not exist'}), 400
+        if room_result[0] == 'Maintenance':
+            return jsonify({'error': 'Room is under maintenance'}), 400
         
         type_id = room_result[1]
+        
+        # Check for date conflicts with existing confirmed reservations
+        cursor.execute('''
+            SELECT COUNT(*) FROM Reservation 
+            WHERE room_number = %s 
+            AND reservation_status = 'Confirmed'
+            AND NOT (check_out_date <= %s OR check_in_date >= %s)
+        ''', (data['room_number'], data['check_in_date'], data['check_out_date']))
+        
+        conflict_count = cursor.fetchone()[0]
+        if conflict_count > 0:
+            return jsonify({'error': 'Room is not available for the selected dates'}), 400
         
         # Get room price
         cursor.execute('SELECT price_per_night FROM Room_Type WHERE type_id = %s', (type_id,))
@@ -349,10 +382,6 @@ def cancel_reservation(reservation_id):
         # Update reservation status to Cancelled
         cursor.execute('UPDATE Reservation SET reservation_status = %s WHERE reservation_id = %s', 
                       ('Cancelled', reservation_id))
-        
-        # Update room status
-        cursor.execute('UPDATE Room SET room_status = %s WHERE room_number = %s', 
-                      ('Available', room_number))
         
         # Return coupon quantity
         if coupon_id:

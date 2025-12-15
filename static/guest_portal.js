@@ -20,11 +20,15 @@ function setMinDates() {
     const checkout = document.getElementById('checkout-date');
     const editCheckin = document.getElementById('edit-checkin');
     const editCheckout = document.getElementById('edit-checkout');
+    const searchCheckin = document.getElementById('search-checkin-date');
+    const searchCheckout = document.getElementById('search-checkout-date');
     
     if (checkin) checkin.min = today;
     if (checkout) checkout.min = today;
     if (editCheckin) editCheckin.min = today;
     if (editCheckout) editCheckout.min = today;
+    if (searchCheckin) searchCheckin.min = today;
+    if (searchCheckout) searchCheckout.min = today;
 }
 
 // ========== NAVIGATION ==========
@@ -51,7 +55,8 @@ function backToDashboard() {
 function startBooking() {
     hideAll();
     document.getElementById('rooms-section').style.display = 'block';
-    loadRooms();
+    // Clear previous search
+    document.getElementById('rooms-list').innerHTML = '<p style="color: #666; text-align: center;">Select dates and click "Search Available Rooms" to see available options.</p>';
 }
 
 function backToRooms() {
@@ -280,14 +285,36 @@ function showDashboard() {
 }
 
 // ========== LOAD ROOMS ==========
-async function loadRooms() {
+async function searchAvailableRooms() {
+    const checkin = document.getElementById('search-checkin-date').value;
+    const checkout = document.getElementById('search-checkout-date').value;
+    
+    if (!checkin || !checkout) {
+        alert('Please select both check-in and check-out dates');
+        return;
+    }
+    
+    if (new Date(checkout) <= new Date(checkin)) {
+        alert('Check-out date must be after check-in date');
+        return;
+    }
+    
+    await loadRooms(checkin, checkout);
+}
+
+async function loadRooms(checkin, checkout) {
     try {
-        const response = await fetch('/api/rooms/available');
+        let url = '/api/rooms/available';
+        if (checkin && checkout) {
+            url += `?check_in_date=${checkin}&check_out_date=${checkout}`;
+        }
+        
+        const response = await fetch(url);
         const rooms = await response.json();
         
         const container = document.getElementById('rooms-list');
         if (rooms.length === 0) {
-            container.innerHTML = '<p>No rooms available at the moment.</p>';
+            container.innerHTML = '<p style="color: #e74c3c; text-align: center;">No rooms available for the selected dates. Please try different dates.</p>';
             return;
         }
         
@@ -334,12 +361,21 @@ async function selectRoom(room) {
         </label>
     `).join('');
     
-    // Clear form fields
-    document.getElementById('checkin-date').value = '';
-    document.getElementById('checkout-date').value = '';
+    // Pre-fill dates from search if available
+    const searchCheckin = document.getElementById('search-checkin-date').value;
+    const searchCheckout = document.getElementById('search-checkout-date').value;
+    
+    document.getElementById('checkin-date').value = searchCheckin || '';
+    document.getElementById('checkout-date').value = searchCheckout || '';
     document.getElementById('num-guests').value = 1;
     document.getElementById('coupon-code').value = '';
-    document.getElementById('price-summary').style.display = 'none';
+    
+    // Calculate price if dates are pre-filled
+    if (searchCheckin && searchCheckout) {
+        calculatePrice();
+    } else {
+        document.getElementById('price-summary').style.display = 'none';
+    }
     
     hideAll();
     document.getElementById('booking-details-section').style.display = 'block';
