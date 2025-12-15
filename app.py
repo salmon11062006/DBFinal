@@ -98,6 +98,34 @@ def update_guest(guest_id):
         cursor.close()
         conn.close()
 
+# Delete Guest Account
+@app.route('/api/guests/<int:guest_id>', methods=['DELETE'])
+def delete_guest(guest_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Check if guest has any reservations
+        cursor.execute('SELECT COUNT(*) as count FROM Reservation WHERE guest_id = %s', (guest_id,))
+        result = cursor.fetchone()
+        
+        if result['count'] > 0:
+            return jsonify({
+                'error': 'Cannot delete account. Please cancel all your bookings before deleting your account.'
+            }), 400
+        
+        # Delete the guest if no reservations exist
+        cursor.execute('DELETE FROM Guest WHERE guest_id = %s', (guest_id,))
+        conn.commit()
+        return jsonify({'message': 'Account deleted successfully'}), 200
+    
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting guest: {e}")
+        return jsonify({'error': str(e)}), 400
+    finally:
+        cursor.close()
+        conn.close()
+
 # ========== ROOM APIs ==========
 
 # Get Available Rooms

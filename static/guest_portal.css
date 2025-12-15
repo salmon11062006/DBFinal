@@ -137,6 +137,15 @@ input:focus {
     transform: translateY(-2px);
 }
 
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
 /* Reservation Cards */
 .reservation-card {
     border: 2px solid #e0e0e0;

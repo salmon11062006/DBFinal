@@ -598,3 +598,28 @@ function closeEditProfileModal() {
 function closeEditBookingModal() {
     document.getElementById('edit-booking-modal').classList.remove('active');
 }
+
+// ========== DELETE ACCOUNT ==========
+async function deleteAccount() {
+    if (!confirm('Are you sure you want to delete your account? This action cannot be undone. You must cancel all your bookings first.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('Your account has been deleted successfully.');
+            location.reload();
+        } else {
+            alert(result.error || 'Failed to delete account.');
+        }
+    } catch (error) {
+        console.error('Error deleting account:', error);
+        alert('An error occurred while deleting your account.');
+    }
+}
