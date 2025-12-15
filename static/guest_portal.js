@@ -1,687 +1,169 @@
 // Global state
 let currentGuest = null;
-let availableRooms = [];
 let selectedRoom = null;
-let bookingDetails = {
-    checkIn: null,
-    checkOut: null,
-    guests: 1,
+let availableAddons = [];
+let selectedAddons = [];
+let bookingData = {
     coupon: null,
     discount: 0
 };
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Page loaded, initializing...');
-    
-    // Check if all forms exist
-    console.log('guest-info-form exists:', !!document.getElementById('guest-info-form'));
-    console.log('login-form exists:', !!document.getElementById('login-form'));
-    console.log('booking-form exists:', !!document.getElementById('booking-form'));
-    
-    setupGuestInfoForm();
-    setupLoginForm();
-    setupBookingForm();
-    setupPaymentForm();
-    setupPaymentMethodToggle();
-    setupEditGuestForm();
-    setupEditReservationForm();
-    setMinDate();
-    
-    console.log('Initialization complete');
+    setupForms();
+    setMinDates();
 });
 
-// Show/Hide sections
+function setMinDates() {
+    const today = new Date().toISOString().split('T')[0];
+    const checkin = document.getElementById('checkin-date');
+    const checkout = document.getElementById('checkout-date');
+    const editCheckin = document.getElementById('edit-checkin');
+    const editCheckout = document.getElementById('edit-checkout');
+    
+    if (checkin) checkin.min = today;
+    if (checkout) checkout.min = today;
+    if (editCheckin) editCheckin.min = today;
+    if (editCheckout) editCheckout.min = today;
+}
+
+// ========== NAVIGATION ==========
 function showLogin() {
-    console.log('Showing login section');
-    document.getElementById('auth-selection').style.display = 'none';
+    hideAll();
     document.getElementById('login-section').style.display = 'block';
-    document.getElementById('login-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function showRegister() {
-    console.log('Showing register section');
-    document.getElementById('auth-selection').style.display = 'none';
+    hideAll();
     document.getElementById('register-section').style.display = 'block';
-    document.getElementById('guest-info-form').style.display = 'block';
-    document.getElementById('guest-info-display').style.display = 'none';
-    document.getElementById('register-section').scrollIntoView({ behavior: 'smooth' });
 }
 
-function backToAuthSelection() {
-    console.log('Going back to auth selection');
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('register-section').style.display = 'none';
+function backToAuth() {
+    hideAll();
     document.getElementById('auth-selection').style.display = 'block';
-    document.getElementById('auth-selection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function backToDashboard() {
+    hideAll();
+    document.getElementById('dashboard-section').style.display = 'block';
+}
+
+function startBooking() {
+    hideAll();
+    document.getElementById('rooms-section').style.display = 'block';
+    loadRooms();
+}
+
+function backToRooms() {
+    hideAll();
+    document.getElementById('rooms-section').style.display = 'block';
+}
+
+function backToDetails() {
+    hideAll();
+    document.getElementById('booking-details-section').style.display = 'block';
 }
 
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
-        console.log('Logging out');
         location.reload();
     }
 }
 
-// Login Form
-function setupLoginForm() {
-    const form = document.getElementById('login-form');
-    if (!form) return;
-    
-    form.addEventListener('submit', async (e) => {
+function hideAll() {
+    document.querySelectorAll('.booking-section').forEach(section => {
+        section.style.display = 'none';
+    });
+}
+
+// ========== FORMS SETUP ==========
+function setupForms() {
+    // Login form
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const email = document.getElementById('login-email').value;
-        const phoneLast4 = document.getElementById('login-phone').value;
-        
-        console.log('Login attempt:', email);
+        const password = document.getElementById('login-password').value;
         
         try {
             const response = await fetch('/api/guests/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: email, 
-                    phone_last4: phoneLast4 
-                })
+                body: JSON.stringify({ email, password })
             });
             
             const result = await response.json();
-            console.log('Login response:', result);
-            
             if (response.ok && result.success) {
-                // Login successful
                 currentGuest = result.guest;
-                
-                // Display logged in info
-                document.getElementById('logged-guest-name').textContent = currentGuest.name;
-                document.getElementById('logged-guest-email').textContent = currentGuest.email;
-                document.getElementById('logged-guest-phone').textContent = currentGuest.phone;
-                
-                // Show logged in section
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('logged-in-section').style.display = 'block';
-                document.getElementById('logged-in-section').scrollIntoView({ behavior: 'smooth' });
-                
-                console.log('Logged in as:', currentGuest);
+                showDashboard();
+                e.target.reset();
             } else {
-                alert(result.error || 'Login failed. Please check your credentials.');
+                alert(result.error || 'Login failed');
             }
         } catch (error) {
             console.error('Error:', error);
             alert('Login error. Please try again.');
         }
     });
-}
-
-// Set minimum date to today
-function setMinDate() {
-    const today = new Date().toISOString().split('T')[0];
-    const checkinInput = document.getElementById('booking-checkin');
-    const checkoutInput = document.getElementById('booking-checkout');
-    if (checkinInput) checkinInput.min = today;
-    if (checkoutInput) checkoutInput.min = today;
-}
-
-// Guest Information Form
-function setupGuestInfoForm() {
-    const form = document.getElementById('guest-info-form');
-    if (!form) return;
     
-    form.addEventListener('submit', async (e) => {
+    // Register form
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        
         const data = {
-            name: document.getElementById('guest-name').value,
-            email: document.getElementById('guest-email').value,
-            phone: document.getElementById('guest-phone').value
-        };
-
-        console.log('Submitting guest data:', data);
-        console.log('Current guest:', currentGuest);
-
-        try {
-            let response;
-            let isUpdate = false;
-            
-            // If guest exists, update; otherwise create new
-            if (currentGuest && currentGuest.guest_id) {
-                console.log('Updating existing guest:', currentGuest.guest_id);
-                isUpdate = true;
-                response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            } else {
-                // Create new guest
-                console.log('Creating new guest');
-                response = await fetch('/api/guests', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            }
-
-            console.log('Response status:', response.status);
-            const result = await response.json();
-            console.log('Response data:', result);
-
-            if (response.ok) {
-                if (!isUpdate) {
-                    // New guest - save the guest_id
-                    currentGuest = { ...data, guest_id: result.guest_id };
-                    console.log('New guest created with ID:', result.guest_id);
-                } else {
-                    // Update existing guest data
-                    currentGuest.name = data.name;
-                    currentGuest.email = data.email;
-                    currentGuest.phone = data.phone;
-                    console.log('Guest updated');
-                }
-                
-                // Display updated guest info
-                document.getElementById('display-guest-name').textContent = data.name;
-                document.getElementById('display-guest-email').textContent = data.email;
-                document.getElementById('display-guest-phone').textContent = data.phone;
-                
-                // Hide form, show display
-                document.getElementById('guest-info-form').style.display = 'none';
-                document.getElementById('guest-info-display').style.display = 'block';
-                
-                if (isUpdate) {
-                    alert('Information updated successfully!');
-                }
-                
-                // Scroll to display
-                document.getElementById('guest-info-display').scrollIntoView({ behavior: 'smooth' });
-            } else {
-                console.error('Error response:', result);
-                alert('Error: ' + (result.error || 'Please try again.'));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error saving information: ' + error.message);
-        }
-    });
-}
-
-function editGuestInfo() {
-    // Pre-fill the form with current guest data
-    document.getElementById('guest-name').value = currentGuest.name;
-    document.getElementById('guest-email').value = currentGuest.email;
-    document.getElementById('guest-phone').value = currentGuest.phone;
-    
-    // Show form, hide display
-    document.getElementById('guest-info-form').style.display = 'block';
-    document.getElementById('guest-info-display').style.display = 'none';
-    
-    // Scroll to form
-    document.getElementById('guest-info-form').scrollIntoView({ behavior: 'smooth' });
-}
-
-function showBookingForm() {
-    document.getElementById('register-section').style.display = 'none';
-    document.getElementById('logged-in-section').style.display = 'none';
-    document.getElementById('my-bookings-section').style.display = 'none';
-    document.getElementById('room-selection-section').style.display = 'block';
-    loadAvailableRooms();
-    
-    // Scroll to room selection
-    document.getElementById('room-selection-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-function backToLoggedIn() {
-    document.getElementById('my-bookings-section').style.display = 'none';
-    document.getElementById('logged-in-section').style.display = 'block';
-    document.getElementById('logged-in-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-// View My Bookings
-async function viewMyBookings() {
-    if (!currentGuest || !currentGuest.guest_id) {
-        alert('Please login first');
-        return;
-    }
-    
-    console.log('Loading bookings for guest:', currentGuest.guest_id);
-    
-    try {
-        const response = await fetch(`/api/guests/${currentGuest.guest_id}/reservations`);
-        const bookings = await response.json();
-        
-        console.log('Bookings loaded:', bookings);
-        
-        const container = document.getElementById('my-bookings-list');
-        
-        if (bookings.length === 0) {
-            container.innerHTML = `
-                <div class="info-card" style="text-align: center;">
-                    <h3>No Bookings Found</h3>
-                    <p>You haven't made any reservations yet.</p>
-                    <button class="btn btn-primary" onclick="showBookingForm()" style="margin-top: 20px;">Make Your First Booking</button>
-                </div>
-            `;
-        } else {
-            container.innerHTML = bookings.map(booking => {
-                const checkInDate = new Date(booking.check_in_date);
-                const today = new Date();
-                const isPast = checkInDate < today;
-                const canCancel = !isPast;
-                
-                return `
-                <div class="reservation-card" style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                        <div style="flex: 1;">
-                            <h4 style="color: #667eea; margin-bottom: 10px;">Booking #${booking.reservation_id}</h4>
-                            <p><strong>Room:</strong> ${booking.room_type} - Room ${booking.room_number}</p>
-                            <p><strong>Check-in:</strong> ${formatDate(booking.check_in_date)}</p>
-                            <p><strong>Check-out:</strong> ${formatDate(booking.check_out_date)}</p>
-                            <p><strong>Guests:</strong> ${booking.number_of_guests}</p>
-                            <p><strong>Total Amount:</strong> ${booking.transaction_amt}</p>
-                            <p><strong>Payment:</strong> ${booking.pay_method} - 
-                                <span class="status-badge ${booking.pay_status === 'Paid' ? 'status-paid' : 'status-pending'}">
-                                    ${booking.pay_status}
-                                </span>
-                            </p>
-                            ${isPast ? '<p style="color: #999; margin-top: 10px;">✓ Completed</p>' : '<p style="color: #28a745; margin-top: 10px;">📅 Upcoming</p>'}
-                        </div>
-                        <div>
-                            ${canCancel ? `<button class="btn btn-danger" onclick="cancelBooking(${booking.reservation_id})">Cancel Booking</button>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
-        }
-        
-        document.getElementById('logged-in-section').style.display = 'none';
-        document.getElementById('my-bookings-section').style.display = 'block';
-        document.getElementById('my-bookings-section').scrollIntoView({ behavior: 'smooth' });
-        
-    } catch (error) {
-        console.error('Error loading bookings:', error);
-        alert('Error loading your bookings. Please try again.');
-    }
-}
-
-// Cancel Booking
-async function cancelBooking(reservationId) {
-    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
-        return;
-    }
-    
-    console.log('Cancelling reservation:', reservationId);
-    
-    try {
-        const response = await fetch(`/api/reservations/${reservationId}/cancel`, {
-            method: 'DELETE'
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert('Booking cancelled successfully!');
-            viewMyBookings(); // Reload bookings
-        } else {
-            alert('Error: ' + (result.error || 'Could not cancel booking'));
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error cancelling booking. Please try again.');
-    }
-}
-
-// ========== EDIT GUEST INFORMATION ==========
-function openEditGuestModal() {
-    if (!currentGuest) {
-        alert('Please login first');
-        return;
-    }
-    
-    // Pre-fill form with current data
-    document.getElementById('edit-guest-name').value = currentGuest.name;
-    document.getElementById('edit-guest-email').value = currentGuest.email;
-    document.getElementById('edit-guest-phone').value = currentGuest.phone;
-    
-    // Show modal
-    document.getElementById('edit-guest-modal').classList.add('active');
-}
-
-function closeEditGuestModal() {
-    document.getElementById('edit-guest-modal').classList.remove('active');
-}
-
-function setupEditGuestForm() {
-    const form = document.getElementById('edit-guest-form');
-    if (!form) return;
-    
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const data = {
-            name: document.getElementById('edit-guest-name').value,
-            email: document.getElementById('edit-guest-email').value,
-            phone: document.getElementById('edit-guest-phone').value
+            name: document.getElementById('reg-name').value,
+            email: document.getElementById('reg-email').value,
+            phone: document.getElementById('reg-phone').value,
+            password: document.getElementById('reg-password').value
         };
         
-        console.log('Updating guest info:', data);
-        
         try {
-            const response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
-                method: 'PUT',
+            const response = await fetch('/api/guests/register', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             
             const result = await response.json();
-            
             if (response.ok) {
-                // Update local guest data
-                currentGuest.name = data.name;
-                currentGuest.email = data.email;
-                currentGuest.phone = data.phone;
-                
-                // Update display
-                document.getElementById('logged-guest-name').textContent = data.name;
-                document.getElementById('logged-guest-email').textContent = data.email;
-                document.getElementById('logged-guest-phone').textContent = data.phone;
-                
-                alert('Information updated successfully!');
-                closeEditGuestModal();
+                alert('Registration successful! Please login.');
+                showLogin();
+                e.target.reset();
             } else {
-                alert('Error: ' + (result.error || 'Could not update information'));
+                alert('Error: ' + result.error);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error updating information. Please try again.');
+            alert('Registration error. Please try again.');
         }
     });
-}
-
-// ========== EDIT RESERVATION ==========
-function openEditReservationModal(reservationId, booking) {
-    console.log('Opening edit modal for reservation:', reservationId);
     
-    // Pre-fill form with current booking data
-    document.getElementById('edit-res-id').value = reservationId;
-    document.getElementById('edit-res-room').value = `${booking.room_type} - Room ${booking.room_number}`;
-    document.getElementById('edit-res-checkin').value = booking.check_in_date;
-    document.getElementById('edit-res-checkout').value = booking.check_out_date;
-    document.getElementById('edit-res-guests').value = booking.number_of_guests;
-    
-    // Set min date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('edit-res-checkin').min = today;
-    document.getElementById('edit-res-checkout').min = today;
-    
-    // Show modal
-    document.getElementById('edit-reservation-modal').classList.add('active');
-}
-
-function closeEditReservationModal() {
-    document.getElementById('edit-reservation-modal').classList.remove('active');
-}
-
-function setupEditReservationForm() {
-    const form = document.getElementById('edit-reservation-form');
-    if (!form) return;
-    
-    form.addEventListener('submit', async (e) => {
+    // Booking form
+    document.getElementById('booking-form').addEventListener('submit', (e) => {
         e.preventDefault();
+        const checkin = document.getElementById('checkin-date').value;
+        const checkout = document.getElementById('checkout-date').value;
         
-        const reservationId = document.getElementById('edit-res-id').value;
-        const checkIn = document.getElementById('edit-res-checkin').value;
-        const checkOut = document.getElementById('edit-res-checkout').value;
-        const guests = document.getElementById('edit-res-guests').value;
-        
-        // Validate dates
-        if (new Date(checkOut) <= new Date(checkIn)) {
-            alert('Check-out date must be after check-in date');
-            return;
-        }
-        
-        const data = {
-            check_in_date: checkIn,
-            check_out_date: checkOut,
-            number_of_guests: parseInt(guests)
-        };
-        
-        console.log('Updating reservation:', reservationId, data);
-        
-        try {
-            const response = await fetch(`/api/reservations/${reservationId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            
-            const result = await response.json();
-            
-            if (response.ok) {
-                alert('Reservation updated successfully!');
-                closeEditReservationModal();
-                viewMyBookings(); // Reload bookings
-            } else {
-                alert('Error: ' + (result.error || 'Could not update reservation'));
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error updating reservation. Please try again.');
-        }
-    });
-}
-
-// Load available rooms
-async function loadAvailableRooms() {
-    try {
-        const response = await fetch('/api/rooms/available');
-        availableRooms = await response.json();
-        displayAvailableRooms();
-    } catch (error) {
-        console.error('Error loading rooms:', error);
-    }
-}
-
-function displayAvailableRooms() {
-    const container = document.getElementById('available-rooms-list');
-    
-    if (availableRooms.length === 0) {
-        container.innerHTML = '<p>No rooms available at the moment. Please check back later.</p>';
-        return;
-    }
-
-    container.innerHTML = availableRooms.map(room => `
-        <div class="room-card" onclick="selectRoom('${room.room_number}')">
-            <h3>${room.room_type} - Room ${room.room_number}</h3>
-            <p class="room-price">$${room.price_per_night} / night</p>
-            <p class="room-features">Perfect for a comfortable stay with all amenities</p>
-            <button class="btn btn-primary">Select This Room</button>
-        </div>
-    `).join('');
-}
-
-function selectRoom(roomNumber) {
-    selectedRoom = availableRooms.find(r => r.room_number === roomNumber);
-    
-    // Update selected room info
-    document.getElementById('selected-room-info').innerHTML = `
-        <h4>${selectedRoom.room_type} - Room ${selectedRoom.room_number}</h4>
-        <p><strong>Rate:</strong> $${selectedRoom.price_per_night} per night</p>
-    `;
-    
-    // Show booking details section
-    document.getElementById('booking-details-section').style.display = 'block';
-    document.getElementById('booking-details-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-function backToRoomSelection() {
-    document.getElementById('booking-details-section').style.display = 'none';
-    document.getElementById('room-selection-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-// Booking Form
-function setupBookingForm() {
-    const form = document.getElementById('booking-form');
-    const checkinInput = document.getElementById('booking-checkin');
-    const checkoutInput = document.getElementById('booking-checkout');
-    const guestsInput = document.getElementById('booking-guests');
-    
-    // Update price when dates change
-    [checkinInput, checkoutInput, guestsInput].forEach(input => {
-        input.addEventListener('change', calculatePrice);
-    });
-    
-    form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        bookingDetails.checkIn = checkinInput.value;
-        bookingDetails.checkOut = checkoutInput.value;
-        bookingDetails.guests = parseInt(guestsInput.value);
-        
-        if (new Date(bookingDetails.checkOut) <= new Date(bookingDetails.checkIn)) {
-            alert('Check-out date must be after check-in date');
+        if (new Date(checkout) <= new Date(checkin)) {
+            alert('Check-out must be after check-in');
             return;
         }
         
         showPaymentSection();
     });
-}
-
-function calculatePrice() {
-    const checkin = document.getElementById('booking-checkin').value;
-    const checkout = document.getElementById('booking-checkout').value;
     
-    if (!checkin || !checkout || !selectedRoom) return;
-    
-    const nights = Math.max(1, (new Date(checkout) - new Date(checkin)) / (1000 * 60 * 60 * 24));
-    const roomRate = selectedRoom.price_per_night;
-    const subtotal = roomRate * nights;
-    const discount = bookingDetails.discount || 0;
-    const discountAmount = Math.floor(subtotal * discount / 100);
-    const total = subtotal - discountAmount;
-    
-    // Display price summary
-    document.getElementById('room-rate').textContent = roomRate;
-    document.getElementById('num-nights').textContent = nights;
-    document.getElementById('subtotal').textContent = subtotal;
-    document.getElementById('total-price').textContent = total;
-    
-    if (discount > 0) {
-        document.getElementById('discount-amount').textContent = discountAmount;
-        document.getElementById('discount-percent').textContent = discount;
-        document.getElementById('discount-line').style.display = 'block';
-    } else {
-        document.getElementById('discount-line').style.display = 'none';
-    }
-    
-    document.getElementById('price-summary').style.display = 'block';
-}
-
-async function applyCoupon() {
-    const couponCode = document.getElementById('booking-coupon').value.trim();
-    
-    if (!couponCode) {
-        alert('Please enter a coupon code');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/coupons`);
-        const coupons = await response.json();
-        const coupon = coupons.find(c => c.coupon_id === couponCode && c.qty > 0);
-        
-        if (coupon) {
-            const today = new Date().toISOString().split('T')[0];
-            if (coupon.start_date <= today && coupon.expired_date >= today) {
-                bookingDetails.coupon = coupon.coupon_id;
-                bookingDetails.discount = coupon.discount_amt;
-                alert(`Coupon applied! You get ${coupon.discount_amt}% off`);
-                calculatePrice();
-            } else {
-                alert('This coupon has expired');
-            }
-        } else {
-            alert('Invalid or expired coupon code');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error applying coupon');
-    }
-}
-
-function showPaymentSection() {
-    // Calculate final amounts
-    const checkin = new Date(bookingDetails.checkIn);
-    const checkout = new Date(bookingDetails.checkOut);
-    const nights = Math.max(1, (checkout - checkin) / (1000 * 60 * 60 * 24));
-    const roomRate = selectedRoom.price_per_night;
-    const subtotal = roomRate * nights;
-    const discount = bookingDetails.discount || 0;
-    const discountAmount = Math.floor(subtotal * discount / 100);
-    const total = subtotal - discountAmount;
-    
-    // Display booking summary
-    let summaryHTML = `
-        <h3>Booking Summary</h3>
-        <p><strong>Guest:</strong> ${currentGuest.name}</p>
-        <p><strong>Room:</strong> ${selectedRoom.room_type} - Room ${selectedRoom.room_number}</p>
-        <p><strong>Check-in:</strong> ${formatDate(bookingDetails.checkIn)}</p>
-        <p><strong>Check-out:</strong> ${formatDate(bookingDetails.checkOut)}</p>
-        <p><strong>Guests:</strong> ${bookingDetails.guests}</p>
-        <p><strong>Nights:</strong> ${nights}</p>
-        <p><strong>Room Rate:</strong> $${roomRate} / night</p>
-        <p><strong>Subtotal:</strong> $${subtotal}</p>
-    `;
-    
-    if (discount > 0) {
-        summaryHTML += `<p style="color: #28a745;"><strong>Discount (${discount}%):</strong> -$${discountAmount}</p>`;
-    }
-    
-    summaryHTML += `<p class="summary-total">Total: $${total}</p>`;
-    
-    document.getElementById('booking-summary').innerHTML = summaryHTML;
-    document.getElementById('payment-section').style.display = 'block';
-    document.getElementById('payment-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-function backToBooking() {
-    document.getElementById('payment-section').style.display = 'none';
-    document.getElementById('booking-details-section').scrollIntoView({ behavior: 'smooth' });
-}
-
-// Payment Method Toggle
-function setupPaymentMethodToggle() {
-    const paymentMethods = document.querySelectorAll('input[name="payment-method"]');
-    paymentMethods.forEach(method => {
-        method.addEventListener('change', (e) => {
-            const cardDetails = document.getElementById('card-details');
-            if (e.target.value === 'Cash') {
-                cardDetails.style.display = 'none';
-            } else {
-                cardDetails.style.display = 'block';
-            }
-        });
-    });
-}
-
-// Payment Form
-function setupPaymentForm() {
-    const form = document.getElementById('payment-form');
-    
-    form.addEventListener('submit', async (e) => {
+    // Payment form
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const paymentMethod = document.querySelector('input[name="payment-method"]:checked').value;
-        
-        // Create reservation
+        const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
         const reservationData = {
             guest_id: currentGuest.guest_id,
             room_number: selectedRoom.room_number,
-            check_in_date: bookingDetails.checkIn,
-            check_out_date: bookingDetails.checkOut,
-            number_of_guests: bookingDetails.guests,
+            check_in_date: document.getElementById('checkin-date').value,
+            check_out_date: document.getElementById('checkout-date').value,
+            number_of_guests: parseInt(document.getElementById('num-guests').value),
             pay_method: paymentMethod,
-            coupon_id: bookingDetails.coupon || null
+            addon_ids: selectedAddons,
+            coupon_id: bookingData.coupon
         };
         
         try {
@@ -690,50 +172,393 @@ function setupPaymentForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(reservationData)
             });
-
+            
+            const result = await response.json();
             if (response.ok) {
-                const result = await response.json();
-                showConfirmation(result.reservation_id);
+                showConfirmation(result);
             } else {
-                const error = await response.json();
-                alert('Error creating reservation: ' + error.error);
+                alert('Error: ' + result.error);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error creating reservation. Please try again.');
+            alert('Booking error. Please try again.');
         }
     });
+    
+    // Edit profile form
+    document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const password = document.getElementById('edit-password').value;
+        const data = {
+            name: document.getElementById('edit-name').value,
+            email: document.getElementById('edit-email').value,
+            phone: document.getElementById('edit-phone').value,
+            password: password || currentGuest.password || 'unchanged'
+        };
+        
+        try {
+            const response = await fetch(`/api/guests/${currentGuest.guest_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                currentGuest.name = data.name;
+                currentGuest.email = data.email;
+                currentGuest.phone = data.phone;
+                showDashboard();
+                closeEditProfileModal();
+                alert('Profile updated successfully!');
+            } else {
+                alert('Error updating profile');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Update error. Please try again.');
+        }
+    });
+    
+    // Edit booking form
+    document.getElementById('edit-booking-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const resId = document.getElementById('edit-res-id').value;
+        const data = {
+            check_in_date: document.getElementById('edit-checkin').value,
+            check_out_date: document.getElementById('edit-checkout').value,
+            number_of_guests: parseInt(document.getElementById('edit-guests').value)
+        };
+        
+        try {
+            const response = await fetch(`/api/reservations/${resId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (response.ok) {
+                closeEditBookingModal();
+                viewMyBookings();
+                alert('Reservation updated!');
+            } else {
+                alert('Error updating reservation');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Update error');
+        }
+    });
+    
+    // Date change listeners
+    const checkinInput = document.getElementById('checkin-date');
+    const checkoutInput = document.getElementById('checkout-date');
+    
+    if (checkinInput) {
+        checkinInput.addEventListener('change', () => {
+            console.log('Check-in date changed:', checkinInput.value);
+            calculatePrice();
+        });
+    }
+    
+    if (checkoutInput) {
+        checkoutInput.addEventListener('change', () => {
+            console.log('Check-out date changed:', checkoutInput.value);
+            calculatePrice();
+        });
+    }
 }
 
-function showConfirmation(reservationId) {
-    const checkin = new Date(bookingDetails.checkIn);
-    const checkout = new Date(bookingDetails.checkOut);
-    const nights = Math.max(1, (checkout - checkin) / (1000 * 60 * 60 * 24));
-    const roomRate = selectedRoom.price_per_night;
-    const subtotal = roomRate * nights;
-    const discount = bookingDetails.discount || 0;
-    const discountAmount = Math.floor(subtotal * discount / 100);
-    const total = subtotal - discountAmount;
+// ========== DASHBOARD ==========
+function showDashboard() {
+    hideAll();
+    document.getElementById('dash-name').textContent = currentGuest.name;
+    document.getElementById('dash-email').textContent = currentGuest.email;
+    document.getElementById('dash-phone').textContent = currentGuest.phone;
+    document.getElementById('dashboard-section').style.display = 'block';
+}
+
+// ========== LOAD ROOMS ==========
+async function loadRooms() {
+    try {
+        const response = await fetch('/api/rooms/available');
+        const rooms = await response.json();
+        
+        const container = document.getElementById('rooms-list');
+        if (rooms.length === 0) {
+            container.innerHTML = '<p>No rooms available at the moment.</p>';
+            return;
+        }
+        
+        container.innerHTML = rooms.map(room => `
+            <div class="room-card" onclick='selectRoom(${JSON.stringify(room)})'>
+                <h3>${room.room_type} - Room ${room.room_number}</h3>
+                <p class="room-price">$${room.price_per_night} / night</p>
+                <button class="btn btn-primary">Select This Room</button>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading rooms:', error);
+    }
+}
+
+async function selectRoom(room) {
+    selectedRoom = room;
+    selectedAddons = []; // Reset selected addons
+    bookingData = { coupon: null, discount: 0 }; // Reset booking data
     
-    const confirmationHTML = `
-        <p><strong>Reservation ID:</strong> #${reservationId}</p>
-        <p><strong>Guest:</strong> ${currentGuest.name}</p>
-        <p><strong>Email:</strong> ${currentGuest.email}</p>
-        <p><strong>Room:</strong> ${selectedRoom.room_type} - Room ${selectedRoom.room_number}</p>
-        <p><strong>Check-in:</strong> ${formatDate(bookingDetails.checkIn)}</p>
-        <p><strong>Check-out:</strong> ${formatDate(bookingDetails.checkOut)}</p>
-        <p><strong>Total Paid:</strong> $${total}</p>
-        <p style="margin-top: 20px; color: #666;">A confirmation email has been sent to ${currentGuest.email}</p>
+    console.log('Room selected:', room);
+    
+    // Load addons
+    try {
+        const response = await fetch('/api/addons');
+        availableAddons = await response.json();
+        console.log('Addons loaded:', availableAddons);
+    } catch (error) {
+        console.error('Error loading addons:', error);
+    }
+    
+    // Show booking details
+    document.getElementById('selected-room-info').innerHTML = `
+        <h4>${selectedRoom.room_type} - Room ${selectedRoom.room_number}</h4>
+        <p><strong>Rate:</strong> ${selectedRoom.price_per_night} per night</p>
     `;
     
-    document.getElementById('confirmation-details').innerHTML = confirmationHTML;
-    document.getElementById('payment-section').style.display = 'none';
-    document.getElementById('confirmation-section').style.display = 'block';
-    document.getElementById('confirmation-section').scrollIntoView({ behavior: 'smooth' });
+    // Display addons
+    const addonsContainer = document.getElementById('addons-list');
+    addonsContainer.innerHTML = availableAddons.map(addon => `
+        <label class="addon-item">
+            <input type="checkbox" value="${addon.addon_id}" onchange="toggleAddon(${addon.addon_id})">
+            <span>${addon.service_name} - ${addon.service_cost}</span>
+        </label>
+    `).join('');
+    
+    // Clear form fields
+    document.getElementById('checkin-date').value = '';
+    document.getElementById('checkout-date').value = '';
+    document.getElementById('num-guests').value = 1;
+    document.getElementById('coupon-code').value = '';
+    document.getElementById('price-summary').style.display = 'none';
+    
+    hideAll();
+    document.getElementById('booking-details-section').style.display = 'block';
+    
+    console.log('Booking details section shown');
 }
 
-// Utility function
-function formatDate(dateString) {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+function toggleAddon(addonId) {
+    console.log('Toggling addon:', addonId);
+    const index = selectedAddons.indexOf(addonId);
+    if (index > -1) {
+        selectedAddons.splice(index, 1);
+        console.log('Removed addon:', addonId);
+    } else {
+        selectedAddons.push(addonId);
+        console.log('Added addon:', addonId);
+    }
+    console.log('Selected addons:', selectedAddons);
+    calculatePrice();
+}
+
+// ========== PRICE CALCULATION ==========
+function calculatePrice() {
+    const checkin = document.getElementById('checkin-date').value;
+    const checkout = document.getElementById('checkout-date').value;
+    
+    console.log('Calculating price...', { checkin, checkout, selectedRoom });
+    
+    if (!checkin || !checkout || !selectedRoom) {
+        console.log('Missing data for calculation');
+        return;
+    }
+    
+    const checkinDate = new Date(checkin);
+    const checkoutDate = new Date(checkout);
+    const nights = Math.max(1, Math.floor((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24)));
+    
+    console.log('Nights:', nights);
+    
+    const roomRate = parseFloat(selectedRoom.price_per_night);
+    const roomSubtotal = roomRate * nights;
+    
+    console.log('Room rate:', roomRate, 'Subtotal:', roomSubtotal);
+    
+    // Calculate addons cost
+    let addonsCost = 0;
+    selectedAddons.forEach(id => {
+        const addon = availableAddons.find(a => a.addon_id === id);
+        if (addon) {
+            addonsCost += parseFloat(addon.service_cost);
+            console.log('Adding addon:', addon.service_name, addon.service_cost);
+        }
+    });
+    
+    console.log('Total addons cost:', addonsCost);
+    
+    let total = roomSubtotal + addonsCost;
+    
+    // Apply discount
+    const discount = bookingData.discount || 0;
+    const discountAmt = total * discount;
+    total -= discountAmt;
+    
+    console.log('Discount:', discount, 'Discount amount:', discountAmt, 'Final total:', total);
+    
+    // Display
+    document.getElementById('room-rate').textContent = roomRate.toFixed(2);
+    document.getElementById('nights').textContent = nights;
+    document.getElementById('room-subtotal').textContent = roomSubtotal.toFixed(2);
+    document.getElementById('addons-cost').textContent = addonsCost.toFixed(2);
+    document.getElementById('discount-amt').textContent = discountAmt.toFixed(2);
+    document.getElementById('discount-pct').textContent = (discount * 100).toFixed(0);
+    document.getElementById('total-cost').textContent = total.toFixed(2);
+    
+    document.getElementById('addons-cost-line').style.display = addonsCost > 0 ? 'block' : 'none';
+    document.getElementById('discount-line').style.display = discount > 0 ? 'block' : 'none';
+    document.getElementById('price-summary').style.display = 'block';
+    
+    console.log('Price display updated');
+}
+
+async function applyCoupon() {
+    const code = document.getElementById('coupon-code').value.trim();
+    if (!code) return;
+    
+    try {
+        const response = await fetch('/api/coupons');
+        const coupons = await response.json();
+        const coupon = coupons.find(c => c.coupon_id === code);
+        
+        if (coupon) {
+            bookingData.coupon = coupon.coupon_id;
+            bookingData.discount = parseFloat(coupon.discount_amount);
+            alert(`Coupon applied! ${(bookingData.discount * 100).toFixed(0)}% off`);
+            calculatePrice();
+        } else {
+            alert('Invalid coupon code');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error applying coupon');
+    }
+}
+
+// ========== PAYMENT & CONFIRMATION ==========
+function showPaymentSection() {
+    const total = document.getElementById('total-cost').textContent;
+    const addonsText = selectedAddons.length > 0 
+        ? availableAddons.filter(a => selectedAddons.includes(a.addon_id)).map(a => a.service_name).join(', ')
+        : 'None';
+    
+    document.getElementById('payment-summary').innerHTML = `
+        <h3>Booking Summary</h3>
+        <p><strong>Room:</strong> ${selectedRoom.room_type} - Room ${selectedRoom.room_number}</p>
+        <p><strong>Check-in:</strong> ${document.getElementById('checkin-date').value}</p>
+        <p><strong>Check-out:</strong> ${document.getElementById('checkout-date').value}</p>
+        <p><strong>Guests:</strong> ${document.getElementById('num-guests').value}</p>
+        <p><strong>Add-ons:</strong> ${addonsText}</p>
+        <p class="summary-total">Total: $${total}</p>
+    `;
+    
+    hideAll();
+    document.getElementById('payment-section').style.display = 'block';
+}
+
+function showConfirmation(result) {
+    document.getElementById('confirmation-details').innerHTML = `
+        <p><strong>Reservation ID:</strong> #${result.reservation_id}</p>
+        <p><strong>Total Paid:</strong> $${result.total_cost}</p>
+        <p style="margin-top: 20px; color: #28a745;">Your booking has been confirmed!</p>
+    `;
+    
+    hideAll();
+    document.getElementById('confirmation-section').style.display = 'block';
+}
+
+// ========== MY BOOKINGS ==========
+async function viewMyBookings() {
+    try {
+        const response = await fetch(`/api/guests/${currentGuest.guest_id}/reservations`);
+        const bookings = await response.json();
+        
+        const container = document.getElementById('bookings-list');
+        if (bookings.length === 0) {
+            container.innerHTML = '<p>No bookings found.</p>';
+        } else {
+            container.innerHTML = bookings.map(booking => {
+                const isPast = new Date(booking.check_in_date) < new Date();
+                const canEdit = !isPast && booking.reservation_status === 'Confirmed';
+                const addonsText = booking.addons.length > 0 
+                    ? booking.addons.map(a => a.service_name).join(', ')
+                    : 'None';
+                
+                return `
+                <div class="reservation-card">
+                    <h4>Booking #${booking.reservation_id} - ${booking.reservation_status}</h4>
+                    <p><strong>Room:</strong> ${booking.room_type} - Room ${booking.room_number}</p>
+                    <p><strong>Check-in:</strong> ${booking.check_in_date}</p>
+                    <p><strong>Check-out:</strong> ${booking.check_out_date}</p>
+                    <p><strong>Guests:</strong> ${booking.number_of_guests}</p>
+                    <p><strong>Add-ons:</strong> ${addonsText}</p>
+                    <p><strong>Total:</strong> $${booking.total_cost}</p>
+                    <p><strong>Payment:</strong> ${booking.pay_method}</p>
+                    ${canEdit ? `
+                        <div style="margin-top: 10px;">
+                            <button class="btn btn-secondary" onclick='editBooking(${JSON.stringify(booking)})'>Edit</button>
+                            <button class="btn btn-danger" onclick="cancelBooking(${booking.reservation_id})">Cancel</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `}).join('');
+        }
+        
+        hideAll();
+        document.getElementById('bookings-section').style.display = 'block';
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading bookings');
+    }
+}
+
+function editBooking(booking) {
+    document.getElementById('edit-res-id').value = booking.reservation_id;
+    document.getElementById('edit-checkin').value = booking.check_in_date;
+    document.getElementById('edit-checkout').value = booking.check_out_date;
+    document.getElementById('edit-guests').value = booking.number_of_guests;
+    document.getElementById('edit-booking-modal').classList.add('active');
+}
+
+async function cancelBooking(reservationId) {
+    if (!confirm('Cancel this booking?')) return;
+    
+    try {
+        const response = await fetch(`/api/reservations/${reservationId}/cancel`, { method: 'DELETE' });
+        if (response.ok) {
+            alert('Booking cancelled');
+            viewMyBookings();
+        } else {
+            alert('Error cancelling booking');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Cancellation error');
+    }
+}
+
+// ========== MODALS ==========
+function openEditProfileModal() {
+    document.getElementById('edit-name').value = currentGuest.name;
+    document.getElementById('edit-email').value = currentGuest.email;
+    document.getElementById('edit-phone').value = currentGuest.phone;
+    document.getElementById('edit-password').value = '';
+    document.getElementById('edit-profile-modal').classList.add('active');
+}
+
+function closeEditProfileModal() {
+    document.getElementById('edit-profile-modal').classList.remove('active');
+}
+
+function closeEditBookingModal() {
+    document.getElementById('edit-booking-modal').classList.remove('active');
 }
