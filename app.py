@@ -239,7 +239,7 @@ def get_guest_reservations(guest_id):
             JOIN Room_Type rt ON rm.type_id = rt.type_id
             WHERE r.guest_id = %s
             ORDER BY r.check_in_date DESC
-        ''', (guest_id,))
+        ''', (guest_id,)) 
         reservations = cursor.fetchall()
         
         # Get addons for each reservation
