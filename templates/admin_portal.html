@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Admin</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 40px; border: 1px solid #ddd; padding: 20px; }
+        h1 { background:   #333; color: white; padding: 10px; margin: -20px -20px 20px -20px; }
+        h2 { border-bottom: 2px solid #333; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin:   10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background:  #f4f4f4; }
+        button { padding: 5px 10px; margin: 2px; cursor: pointer; }
+        .btn-add { background: #4CAF50; color: white; border: none; padding: 10px 20px; }
+        .btn-edit { background: #2196F3; color: white; border: none; }
+        .btn-delete { background: #f44336; color:   white; border: none; }
+        .btn-action { background: #FF9800; color: white; border: none; }
+        input, select { padding: 5px; margin: 5px 0; }
+        .form-group { margin: 10px 0; }
+        .form-group label { display: inline-block; width: 150px; }
+        .hidden { display: none; }
+        .tabs { background: #f4f4f4; padding: 10px; margin: -20px -20px 20px -20px; }
+        .tab { display: inline-block; padding: 10px 20px; cursor: pointer; background: #ddd; margin-right: 5px; }
+        .tab.active { background: #333; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-completed { color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Hotel Admin Panel</h1>
+    <p>Admin:   <span id="adminName"></span> | <button onclick="logout()">Logout</button></p>
+
+    <div id="loginSection" class="section">
+        <h2>Login</h2>
+        <div class="form-group">
+            <label>Username:</label>
+            <input type="text" id="loginUsername" value="admin">
+        </div>
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="loginPassword" value="admin123">
+        </div>
+        <button class="btn-add" onclick="login()">Login</button>
+        <p id="loginError" style="color: red;"></p>
+    </div>
+
+    <div id="adminSection" class="hidden">
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('reservations')">Reservations</div>
+            <div class="tab" onclick="showTab('rooms')">Rooms</div>
+            <div class="tab" onclick="showTab('roomTypes')">Room Types</div>
+            <div class="tab" onclick="showTab('addons')">Add-ons</div>
+            <div class="tab" onclick="showTab('coupons')">Coupons</div>
+        </div>
+
+        <!-- RESERVATIONS -->
+        <div id="reservations" class="tab-content active">
+            <h2>Reservations</h2>
+            <table id="reservationsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Guest</th>
+                        <th>Room</th>
+                        <th>Check-In</th>
+                        <th>Check-Out</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ROOMS -->
+        <div id="rooms" class="tab-content">
+            <h2>Rooms</h2>
+            <button class="btn-add" onclick="showAddRoom()">+ Add Room</button>
+            <div id="addRoomForm" class="hidden" style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">
+                <h3 id="roomFormTitle">Add Room</h3>
+                <input type="hidden" id="roomEditMode">
+                <input type="hidden" id="roomOriginalNumber">
+                <div class="form-group">
+                    <label>Room Number:</label>
+                    <input type="number" id="roomNumber">
+                </div>
+                <div class="form-group">
+                    <label>Room Type:  </label>
+                    <select id="roomTypeSelect"></select>
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="roomStatus">
+                        <option value="Available">Available</option>
+                        <option value="Occupied">Occupied</option>
+                    </select>
+                </div>
+                <button class="btn-add" onclick="saveRoom()">Save</button>
+                <button onclick="cancelRoomForm()">Cancel</button>
+            </div>
+            <table id="roomsTable">
+                <thead>
+                    <tr>
+                        <th>Room Number</th>
+                        <th>Type</th>
+                        <th>Price/Night</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ROOM TYPES -->
+        <div id="roomTypes" class="tab-content">
+            <h2>Room Types</h2>
+            <button class="btn-add" onclick="showAddRoomType()">+ Add Room Type</button>
+            <div id="addRoomTypeForm" class="hidden" style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">
+                <h3 id="roomTypeFormTitle">Add Room Type</h3>
+                <input type="hidden" id="roomTypeEditId">
+                <div class="form-group">
+                    <label>Type Name:</label>
+                    <input type="text" id="roomTypeName">
+                </div>
+                <div class="form-group">
+                    <label>Price per Night:</label>
+                    <input type="number" id="roomTypePrice" step="0.01">
+                </div>
+                <button class="btn-add" onclick="saveRoomType()">Save</button>
+                <button onclick="cancelRoomTypeForm()">Cancel</button>
+            </div>
+            <table id="roomTypesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Price per Night</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ADD-ONS -->
+        <div id="addons" class="tab-content">
+            <h2>Add-on Services</h2>
+            <button class="btn-add" onclick="showAddAddon()">+ Add Service</button>
+            <div id="addAddonForm" class="hidden" style="border: 1px solid #ddd; padding:   10px; margin: 10px 0;">
+                <h3 id="addonFormTitle">Add Service</h3>
+                <input type="hidden" id="addonEditId">
+                <div class="form-group">
+                    <label>Service Name:</label>
+                    <input type="text" id="addonName">
+                </div>
+                <div class="form-group">
+                    <label>Service Cost:</label>
+                    <input type="number" id="addonCost" step="0.01">
+                </div>
+                <button class="btn-add" onclick="saveAddon()">Save</button>
+                <button onclick="cancelAddonForm()">Cancel</button>
+            </div>
+            <table id="addonsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Service Name</th>
+                        <th>Cost</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- COUPONS -->
+        <div id="coupons" class="tab-content">
+            <h2>Coupons</h2>
+            <button class="btn-add" onclick="showAddCoupon()">+ Add Coupon</button>
+            <div id="addCouponForm" class="hidden" style="border:   1px solid #ddd; padding: 10px; margin:   10px 0;">
+                <h3 id="couponFormTitle">Add Coupon</h3>
+                <input type="hidden" id="couponEditMode">
+                <div class="form-group">
+                    <label>Coupon Code:</label>
+                    <input type="text" id="couponCode">
+                </div>
+                <div class="form-group">
+                    <label>Discount (0.10 = 10%):</label>
+                    <input type="number" id="couponDiscount" step="0.01" min="0" max="1">
+                </div>
+                <div class="form-group">
+                    <label>Quantity:  </label>
+                    <input type="number" id="couponQty">
+                </div>
+                <div class="form-group">
+                    <label>Start Date: </label>
+                    <input type="date" id="couponStartDate">
+                </div>
+                <div class="form-group">
+                    <label>End Date:</label>
+                    <input type="date" id="couponEndDate">
+                </div>
+                <button class="btn-add" onclick="saveCoupon()">Save</button>
+                <button onclick="cancelCouponForm()">Cancel</button>
+            </div>
+            <table id="couponsTable">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Discount</th>
+                        <th>Qty</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let adminData = null;
+
+        // LOGIN
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers:  { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    adminData = data.admin;
+                    document.getElementById('adminName').textContent = adminData.username;
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('adminSection').classList.remove('hidden');
+                    loadAll();
+                } else {
+                    document.getElementById('loginError').textContent = data.error;
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Login failed';
+            }
+        }
+
+        function logout() {
+            adminData = null;
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('adminSection').classList.add('hidden');
+        }
+
+        // TABS
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function loadAll() {
+            loadReservations();
+            loadRooms();
+            loadRoomTypes();
+            loadAddons();
+            loadCoupons();
+        }
+
+        // RESERVATIONS
+        async function loadReservations() {
+            try {
+                const response = await fetch('/api/admin/reservations');
+                const reservations = await response.json();
+
+                const tbody = document.querySelector('#reservationsTable tbody');
+                tbody.innerHTML = '';
+
+                reservations.forEach(res => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${res.reservation_id}</td>
+                        <td>${res.guest_name}<br><small>${res.email}</small></td>
+                        <td>${res.room_number} (${res.room_type})</td>
+                        <td>${res.check_in_date}</td>
+                        <td>${res.check_out_date}</td>
+                        <td>${res.reservation_status}</td>
+                        <td>$${res.total_cost}</td>
+                        <td>
+                            ${res.reservation_status === 'Confirmed' ? `<button class="btn-action" onclick="checkIn(${res.reservation_id})">Check-In</button>` : ''}
+                            ${res.reservation_status === 'Checked-In' ? `<button class="btn-action" onclick="checkOut(${res.reservation_id})">Check-Out</button>` : ''}
+                            ${res.reservation_status === 'Checked-Out' ? '<span class="status-completed">Completed</span>' : ''}
+                        </td>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading reservations:', error);
+            }
+        }
+
+        async function checkIn(id) {
+            if (!confirm('Check-in this reservation?')) return;
+            try {
+                const response = await fetch(`/api/admin/reservations/${id}/checkin`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadReservations();
+                } else {
+                    alert('Error:  ' + data.error);
+                }
+            } catch (error) {
+                alert('Error checking in');
+                console.error(error);
+            }
+        }
+
+        async function checkOut(id) {
+            if (!confirm('Check-out this reservation?')) return;
+            try {
+                const response = await fetch(`/api/admin/reservations/${id}/checkout`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadReservations();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error checking out');
+                console.error(error);
+            }
+        }
+
+        // REMOVED:  cancelReservation() function - Admin can no longer cancel
+
+        // ROOMS
+        async function loadRooms() {
+            try {
+                const [roomsRes, typesRes] = await Promise.all([
+                    fetch('/api/admin/rooms'),
+                    fetch('/api/admin/room-types')
+                ]);
+                
+                const rooms = await roomsRes.json();
+                const types = await typesRes.json();
+
+                // Populate room type dropdown
+                const select = document.getElementById('roomTypeSelect');
+                select.innerHTML = types.map(t => `<option value="${t.type_id}">${t.name}</option>`).join('');
+
+                // Display rooms
+                const tbody = document.querySelector('#roomsTable tbody');
+                tbody.innerHTML = '';
+
+                rooms.forEach(room => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${room.room_number}</td>
+                        <td>${room.room_type}</td>
+                        <td>$${room.price_per_night}</td>
+                        <td>${room.room_status}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editRoom(${room.room_number})">Edit</button>
+                            <button class="btn-delete" onclick="deleteRoom(${room.room_number})">Delete</button>
+                        </td>
+                    `;
+                });
+
+                window.allRooms = rooms;
+            } catch (error) {
+                console.error('Error loading rooms:', error);
+            }
+        }
+
+        function showAddRoom() {
+            document.getElementById('roomFormTitle').textContent = 'Add Room';
+            document.getElementById('roomEditMode').value = '';
+            document.getElementById('roomOriginalNumber').value = '';
+            document.getElementById('roomNumber').value = '';
+            document.getElementById('addRoomForm').classList.remove('hidden');
+        }
+
+        function editRoom(roomNumber) {
+            const room = window.allRooms.find(r => r.room_number === roomNumber);
+            if (!room) return;
+
+            document.getElementById('roomFormTitle').textContent = 'Edit Room';
+            document.getElementById('roomEditMode').value = '1';
+            document.getElementById('roomOriginalNumber').value = room.room_number;
+            document.getElementById('roomNumber').value = room.room_number;
+            document.getElementById('roomTypeSelect').value = room.type_id;
+            document.getElementById('roomStatus').value = room.room_status;
+            document.getElementById('addRoomForm').classList.remove('hidden');
+        }
+
+        async function saveRoom() {
+            const editMode = document.getElementById('roomEditMode').value;
+            const originalNumber = document.getElementById('roomOriginalNumber').value;
+            const roomNumber = document.getElementById('roomNumber').value;
+            const typeId = document.getElementById('roomTypeSelect').value;
+            const status = document.getElementById('roomStatus').value;
+
+            const url = editMode ?  `/api/admin/rooms/${originalNumber}` : '/api/admin/rooms';
+            const method = editMode ? 'PUT' :  'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method:  method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ room_number: roomNumber, type_id: typeId, room_status: status })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    cancelRoomForm();
+                    loadRooms();
+                } else {
+                    alert('Error:  ' + data.error);
+                }
+            } catch (error) {
+                alert('Error saving room');
+                console.error(error);
+            }
+        }
+
+        async function deleteRoom(roomNumber) {
+            if (!confirm('Delete this room?')) return;
+            try {
+                const response = await fetch(`/api/admin/rooms/${roomNumber}`, { method: 'DELETE' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadRooms();
+                } else {
+                    alert('Error:  ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting room');
+                console.error(error);
+            }
+        }
+
+        function cancelRoomForm() {
+            document.getElementById('addRoomForm').classList.add('hidden');
+        }
+
+        // ROOM TYPES
+        async function loadRoomTypes() {
+            try {
+                const response = await fetch('/api/admin/room-types');
+                const types = await response.json();
+
+                const tbody = document.querySelector('#roomTypesTable tbody');
+                tbody.innerHTML = '';
+
+                types.forEach(type => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${type.type_id}</td>
+                        <td>${type.name}</td>
+                        <td>$${type.price_per_night}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editRoomType(${type.type_id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteRoomType(${type.type_id})">Delete</button>
+                        </td>
+                    `;
+                });
+
+                window.allRoomTypes = types;
+            } catch (error) {
+                console.error('Error loading room types:', error);
+            }
+        }
+
+        function showAddRoomType() {
+            document.getElementById('roomTypeFormTitle').textContent = 'Add Room Type';
+            document.getElementById('roomTypeEditId').value = '';
+            document.getElementById('roomTypeName').value = '';
+            document.getElementById('roomTypePrice').value = '';
+            document.getElementById('addRoomTypeForm').classList.remove('hidden');
+        }
+
+        function editRoomType(typeId) {
+            const type = window.allRoomTypes.find(t => t.type_id === typeId);
+            if (!type) return;
+
+            document.getElementById('roomTypeFormTitle').textContent = 'Edit Room Type';
+            document.getElementById('roomTypeEditId').value = type.type_id;
+            document.getElementById('roomTypeName').value = type.name;
+            document.getElementById('roomTypePrice').value = type.price_per_night;
+            document.getElementById('addRoomTypeForm').classList.remove('hidden');
+        }
+
+        async function saveRoomType() {
+            const editId = document.getElementById('roomTypeEditId').value;
+            const name = document.getElementById('roomTypeName').value;
+            const price = document.getElementById('roomTypePrice').value;
+
+            const url = editId ? `/api/admin/room-types/${editId}` : '/api/admin/room-types';
+            const method = editId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, price_per_night: price })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    cancelRoomTypeForm();
+                    loadRoomTypes();
+                    loadRooms();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error saving room type');
+                console.error(error);
+            }
+        }
+
+        async function deleteRoomType(typeId) {
+            if (!confirm('Delete this room type?')) return;
+            try {
+                const response = await fetch(`/api/admin/room-types/${typeId}`, { method: 'DELETE' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadRoomTypes();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting room type');
+                console.error(error);
+            }
+        }
+
+        function cancelRoomTypeForm() {
+            document.getElementById('addRoomTypeForm').classList.add('hidden');
+        }
+
+        // ADD-ONS
+        async function loadAddons() {
+            try {
+                const response = await fetch('/api/admin/addons');
+                const addons = await response.json();
+
+                const tbody = document.querySelector('#addonsTable tbody');
+                tbody.innerHTML = '';
+
+                addons.forEach(addon => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${addon.addon_id}</td>
+                        <td>${addon.service_name}</td>
+                        <td>$${addon.service_cost}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editAddon(${addon.addon_id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteAddon(${addon.addon_id})">Delete</button>
+                        </td>
+                    `;
+                });
+
+                window.allAddons = addons;
+            } catch (error) {
+                console.error('Error loading addons:', error);
+            }
+        }
+
+        function showAddAddon() {
+            document.getElementById('addonFormTitle').textContent = 'Add Service';
+            document.getElementById('addonEditId').value = '';
+            document.getElementById('addonName').value = '';
+            document.getElementById('addonCost').value = '';
+            document.getElementById('addAddonForm').classList.remove('hidden');
+        }
+
+        function editAddon(addonId) {
+            const addon = window.allAddons.find(a => a.addon_id === addonId);
+            if (!addon) return;
+
+            document.getElementById('addonFormTitle').textContent = 'Edit Service';
+            document.getElementById('addonEditId').value = addon.addon_id;
+            document.getElementById('addonName').value = addon.service_name;
+            document.getElementById('addonCost').value = addon.service_cost;
+            document.getElementById('addAddonForm').classList.remove('hidden');
+        }
+
+        async function saveAddon() {
+            const editId = document.getElementById('addonEditId').value;
+            const name = document.getElementById('addonName').value;
+            const cost = document.getElementById('addonCost').value;
+
+            const url = editId ? `/api/admin/addons/${editId}` : '/api/admin/addons';
+            const method = editId ?  'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ service_name: name, service_cost: cost })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    cancelAddonForm();
+                    loadAddons();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error saving add-on');
+                console.error(error);
+            }
+        }
+
+        async function deleteAddon(addonId) {
+            if (!confirm('Delete this add-on?')) return;
+            try {
+                const response = await fetch(`/api/admin/addons/${addonId}`, { method: 'DELETE' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadAddons();
+                } else {
+                    alert('Error:  ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting add-on');
+                console.error(error);
+            }
+        }
+
+        function cancelAddonForm() {
+            document.getElementById('addAddonForm').classList.add('hidden');
+        }
+
+        // COUPONS
+        async function loadCoupons() {
+            try {
+                const response = await fetch('/api/admin/coupons');
+                const coupons = await response.json();
+
+                const tbody = document.querySelector('#couponsTable tbody');
+                tbody.innerHTML = '';
+
+                coupons.forEach(coupon => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>${coupon.coupon_id}</td>
+                        <td>${(coupon.discount_amount * 100).toFixed(0)}%</td>
+                        <td>${coupon.qty}</td>
+                        <td>${coupon.start_date}</td>
+                        <td>${coupon.expired_date}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editCoupon('${coupon.coupon_id}')">Edit</button>
+                            <button class="btn-delete" onclick="deleteCoupon('${coupon.coupon_id}')">Delete</button>
+                        </td>
+                    `;
+                });
+
+                window.allCoupons = coupons;
+            } catch (error) {
+                console.error('Error loading coupons:', error);
+            }
+        }
+
+        function showAddCoupon() {
+            document.getElementById('couponFormTitle').textContent = 'Add Coupon';
+            document.getElementById('couponEditMode').value = '';
+            document.getElementById('couponCode').value = '';
+            document.getElementById('couponCode').disabled = false;
+            document.getElementById('couponDiscount').value = '';
+            document.getElementById('couponQty').value = '';
+            document.getElementById('couponStartDate').value = '';
+            document.getElementById('couponEndDate').value = '';
+            document.getElementById('addCouponForm').classList.remove('hidden');
+        }
+
+        function editCoupon(couponId) {
+            const coupon = window.allCoupons.find(c => c.coupon_id === couponId);
+            if (!coupon) return;
+
+            document.getElementById('couponFormTitle').textContent = 'Edit Coupon';
+            document.getElementById('couponEditMode').value = '1';
+            document.getElementById('couponCode').value = coupon.coupon_id;
+            document.getElementById('couponCode').disabled = true;
+            document.getElementById('couponDiscount').value = coupon.discount_amount;
+            document.getElementById('couponQty').value = coupon.qty;
+            document.getElementById('couponStartDate').value = coupon.start_date;
+            document.getElementById('couponEndDate').value = coupon.expired_date;
+            document.getElementById('addCouponForm').classList.remove('hidden');
+        }
+
+        async function saveCoupon() {
+            const editMode = document.getElementById('couponEditMode').value;
+            const code = document.getElementById('couponCode').value;
+            const discount = document.getElementById('couponDiscount').value;
+            const qty = document.getElementById('couponQty').value;
+            const startDate = document.getElementById('couponStartDate').value;
+            const endDate = document.getElementById('couponEndDate').value;
+
+            const url = editMode ? `/api/admin/coupons/${code}` : '/api/admin/coupons';
+            const method = editMode ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers:  { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        coupon_id: code,
+                        discount_amount: discount,
+                        qty: qty,
+                        start_date: startDate,
+                        expired_date: endDate
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    cancelCouponForm();
+                    loadCoupons();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error saving coupon');
+                console.error(error);
+            }
+        }
+
+        async function deleteCoupon(couponId) {
+            if (!confirm('Delete this coupon?')) return;
+            try {
+                const response = await fetch(`/api/admin/coupons/${couponId}`, { method: 'DELETE' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    loadCoupons();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting coupon');
+                console.error(error);
+            }
+        }
+
+        function cancelCouponForm() {
+            document.getElementById('addCouponForm').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

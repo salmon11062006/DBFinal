@@ -8,7 +8,7 @@ app = Flask(__name__)
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Salomo531',  # Change this
+    'password': '1234',  # Change this
     'database': 'hotelreservation'
 }
 
@@ -131,15 +131,39 @@ def delete_guest(guest_id):
 # Get Available Rooms
 @app.route('/api/rooms/available', methods=['GET'])
 def get_available_rooms():
+    check_in = request.args.get('check_in_date')
+    check_out = request.args.get('check_out_date')
+    
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute('''
-            SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night
-            FROM Room r
-            JOIN Room_Type rt ON r.type_id = rt.type_id
-            WHERE r.room_status = 'Available'
-        ''')
+        # If dates provided, check date availability
+        if check_in and check_out:
+            cursor.execute('''
+                SELECT DISTINCT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night, rt.type_id
+                FROM Room r
+                JOIN Room_Type rt ON r.type_id = rt.type_id
+                WHERE r.room_number NOT IN (
+                    SELECT room_number 
+                    FROM Reservation 
+                    WHERE reservation_status IN ('Confirmed', 'Checked-In')
+                    AND (
+                        (check_in_date <= %s AND check_out_date > %s) OR
+                        (check_in_date < %s AND check_out_date >= %s) OR
+                        (check_in_date >= %s AND check_out_date <= %s)
+                    )
+                )
+                ORDER BY r.room_number
+            ''', (check_in, check_in, check_out, check_out, check_in, check_out))
+        else:
+            # If no dates, show all rooms
+            cursor.execute('''
+                SELECT r.room_number, r.room_status, rt.name as room_type, rt.price_per_night, rt.type_id
+                FROM Room r
+                JOIN Room_Type rt ON r.type_id = rt.type_id
+                ORDER BY r.room_number
+            ''')
+        
         rooms = cursor.fetchall()
         return jsonify(rooms)
     except Exception as e:
@@ -247,55 +271,120 @@ def get_guest_reservations(guest_id):
 def create_reservation():
     data = request.json
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)  # ← Changed to dictionary=True
     
     try:
-        # Check if room is available
+        # ===== FIX 1: PROPER ROOM AVAILABILITY CHECK =====
+        
+        # Check if room exists
         cursor.execute('SELECT room_status, type_id FROM Room WHERE room_number = %s', (data['room_number'],))
         room_result = cursor.fetchone()
-        if not room_result or room_result[0] != 'Available':
-            return jsonify({'error': 'Room is not available'}), 400
         
-        type_id = room_result[1]
+        if not room_result: 
+            return jsonify({'error':  'Room not found'}), 404
+        
+        # Only block Out-of-Service rooms (NOT Occupied!)
+        if room_result['room_status'] == 'Out-of-Service':
+            return jsonify({'error': 'Room is out of service'}), 400
+        
+        type_id = room_result['type_id']
+        
+        # Check for DATE CONFLICTS with existing reservations
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM Reservation 
+            WHERE room_number = %s 
+            AND reservation_status IN ('Confirmed', 'Checked-In')
+            AND (
+                (check_in_date <= %s AND check_out_date > %s) OR
+                (check_in_date < %s AND check_out_date >= %s) OR
+                (check_in_date >= %s AND check_out_date <= %s)
+            )
+        ''', (
+            data['room_number'],
+            data['check_in_date'], data['check_in_date'],
+            data['check_out_date'], data['check_out_date'],
+            data['check_in_date'], data['check_out_date']
+        ))
+        
+        conflict = cursor.fetchone()
+        if conflict['count'] > 0:
+            return jsonify({'error': 'Room is not available for the selected dates'}), 400
+        
+        # ===== END FIX 1 =====
         
         # Get room price
         cursor.execute('SELECT price_per_night FROM Room_Type WHERE type_id = %s', (type_id,))
-        price = cursor.fetchone()[0]
+        price_result = cursor.fetchone()
+        price = price_result['price_per_night']
         
         # Calculate total cost
         check_in = datetime.strptime(data['check_in_date'], '%Y-%m-%d')
         check_out = datetime.strptime(data['check_out_date'], '%Y-%m-%d')
         nights = (check_out - check_in).days
+        
+        if nights <= 0:
+            return jsonify({'error': 'Check-out date must be after check-in date'}), 400
+        
         total_cost = float(price) * nights
         
         # Add addon costs
         addon_ids = data.get('addon_ids', [])
         if addon_ids:
             placeholders = ','.join(['%s'] * len(addon_ids))
-            cursor.execute(f'SELECT SUM(service_cost) FROM Addon_Services WHERE addon_id IN ({placeholders})', addon_ids)
-            addon_total = cursor.fetchone()[0] or 0
+            cursor.execute(f'SELECT SUM(service_cost) as total FROM Addon_Services WHERE addon_id IN ({placeholders})', addon_ids)
+            result = cursor.fetchone()
+            addon_total = result['total'] if result and result['total'] else 0
             total_cost += float(addon_total)
         
-        # Apply coupon discount
+        # ===== FIX 2: COUPON DATE VALIDATION =====
+        
         coupon_id = data.get('coupon_id', None)
-        if coupon_id:
-            cursor.execute('SELECT discount_amount, qty FROM Coupon WHERE coupon_id = %s', (coupon_id,))
+        if coupon_id: 
+            cursor.execute('''
+                SELECT discount_amount, qty, start_date, expired_date 
+                FROM Coupon 
+                WHERE coupon_id = %s
+            ''', (coupon_id,))
             coupon_result = cursor.fetchone()
-            if coupon_result and coupon_result[1] > 0:
-                discount = float(coupon_result[0])
+            
+            if coupon_result: 
+                discount_amount = coupon_result['discount_amount']
+                qty = coupon_result['qty']
+                start_date = coupon_result['start_date']
+                expired_date = coupon_result['expired_date']
+                
+                # Get today's date
+                from datetime import date
+                today = date.today()
+                
+                # Validation checks
+                if qty <= 0:
+                    return jsonify({'error': f'Coupon "{coupon_id}" is out of stock'}), 400
+                
+                if start_date and today < start_date:
+                    return jsonify({'error': f'Coupon "{coupon_id}" is not valid yet.  Valid from {start_date.strftime("%Y-%m-%d")}'}), 400
+                
+                if expired_date and today > expired_date:
+                    return jsonify({'error': f'Coupon "{coupon_id}" has expired on {expired_date.strftime("%Y-%m-%d")}'}), 400
+                
+                # Apply discount if all validations pass
+                discount = float(discount_amount)
                 total_cost = total_cost * (1 - discount)
             else:
-                coupon_id = None
+                return jsonify({'error': f'Coupon "{coupon_id}" does not exist'}), 400
+        
+        # ===== END FIX 2 =====
         
         # Create reservation
         cursor.execute('''
             INSERT INTO Reservation 
             (guest_id, room_number, coupon_id, check_in_date, check_out_date, 
-             total_cost, pay_method, reservation_status, number_of_guests)
+            total_cost, pay_method, reservation_status, number_of_guests)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         ''', (data['guest_id'], data['room_number'], coupon_id, 
-              data['check_in_date'], data['check_out_date'], 
-              round(total_cost, 2), data['pay_method'], 'Confirmed', data['number_of_guests']))
+            data['check_in_date'], data['check_out_date'], 
+            round(total_cost, 2), data['pay_method'], 'Confirmed', data['number_of_guests']))
         
         reservation_id = cursor.lastrowid
         
@@ -307,17 +396,21 @@ def create_reservation():
                     VALUES (%s, %s)
                 ''', (reservation_id, addon_id))
         
-        # Update room status
-        cursor.execute('UPDATE Room SET room_status = %s WHERE room_number = %s', 
-                      ('Occupied', data['room_number']))
+        # ===== FIX 3: DON'T UPDATE ROOM STATUS HERE =====
+        # Room status only changes on check-in/check-out
+        # DELETE THIS LINE IF IT EXISTS: 
+        # cursor.execute('UPDATE Room SET room_status = %s WHERE room_number = %s', ('Occupied', data['room_number']))
         
         # Update coupon quantity
         if coupon_id:
             cursor.execute('UPDATE Coupon SET qty = qty - 1 WHERE coupon_id = %s', (coupon_id,))
         
         conn.commit()
-        return jsonify({'reservation_id': reservation_id, 'total_cost': round(total_cost, 2), 
-                       'message': 'Reservation created successfully'}), 201
+        return jsonify({
+            'reservation_id': reservation_id, 
+            'total_cost':  round(total_cost, 2), 
+            'message': 'Reservation created successfully'
+        }), 201
     
     except Exception as e:
         conn.rollback()
@@ -354,22 +447,30 @@ def update_reservation(reservation_id):
         cursor.close()
         conn.close()
 
-# Cancel Reservation
 @app.route('/api/reservations/<int:reservation_id>/cancel', methods=['DELETE'])
 def cancel_reservation(reservation_id):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)  # ← Changed to dictionary=True
     
     try:
         # Get reservation details
-        cursor.execute('SELECT room_number, coupon_id FROM Reservation WHERE reservation_id = %s', 
-                      (reservation_id,))
+        cursor.execute('''
+            SELECT room_number, coupon_id, reservation_status 
+            FROM Reservation 
+            WHERE reservation_id = %s
+        ''', (reservation_id,))
         result = cursor.fetchone()
         
-        if not result:
-            return jsonify({'error': 'Reservation not found'}), 404
+        if not result:  
+            return jsonify({'error':  'Reservation not found'}), 404
         
-        room_number, coupon_id = result
+        room_number = result['room_number']
+        coupon_id = result['coupon_id']
+        status = result['reservation_status']
+        
+        # Check if already checked in
+        if status == 'Checked-In':
+            return jsonify({'error': 'Cannot cancel - guest has checked in'}), 400
         
         # Delete reservation addons first (foreign key constraint)
         cursor.execute('DELETE FROM Reservation_Addon WHERE reservation_id = %s', (reservation_id,))
@@ -377,22 +478,23 @@ def cancel_reservation(reservation_id):
         # Delete the reservation itself
         cursor.execute('DELETE FROM Reservation WHERE reservation_id = %s', (reservation_id,))
         
-        # Update room status back to Available
-        cursor.execute('UPDATE Room SET room_status = %s WHERE room_number = %s', 
-                      ('Available', room_number))
+        # ===== FIX 4: DON'T UPDATE ROOM STATUS HERE =====
+        # Room should already be Available if guest hasn't checked in
+        # DELETE THIS LINE: 
+        # cursor.execute('UPDATE Room SET room_status = %s WHERE room_number = %s', ('Available', room_number))
         
         # Return coupon quantity
-        if coupon_id:
+        if coupon_id: 
             cursor.execute('UPDATE Coupon SET qty = qty + 1 WHERE coupon_id = %s', (coupon_id,))
         
         conn.commit()
-        print(f"Reservation {reservation_id} deleted successfully")
-        return jsonify({'message': 'Reservation cancelled successfully'})
+        print(f"Reservation {reservation_id} cancelled successfully")
+        return jsonify({'success': True, 'message': 'Reservation cancelled successfully'}), 200
     
-    except Exception as e:
+    except Exception as e: 
         conn.rollback()
         print(f"Error cancelling reservation: {e}")
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         cursor.close()
         conn.close()
