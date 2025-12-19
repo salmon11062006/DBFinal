@@ -1,6 +1,7 @@
 CREATE DATABASE hotelreservation;
 USE hotelreservation;
 
+-- 1. Create Independent Tables first (no Foreign Keys)
 CREATE TABLE Guest (
     guest_id int PRIMARY KEY auto_increment,
     name VARCHAR(100),
@@ -29,6 +30,7 @@ CREATE TABLE Addon_Services (
     service_cost DECIMAL(10, 2)
 );
 
+-- 2. Create Tables with Foreign Keys
 CREATE TABLE Room (
     room_number INT PRIMARY KEY,
     type_id int,
@@ -53,6 +55,7 @@ CREATE TABLE Reservation (
     FOREIGN KEY (coupon_id) REFERENCES Coupon(coupon_id) 
 );
 
+-- 3. Create the Junction Table (Many-to-Many)
 CREATE TABLE Reservation_Addon (
     reservation_id INT,
     addon_id int,
@@ -60,3 +63,4 @@ CREATE TABLE Reservation_Addon (
     FOREIGN KEY (reservation_id) REFERENCES Reservation(reservation_id),
     FOREIGN KEY (addon_id) REFERENCES Addon_Services(addon_id)
 );
+

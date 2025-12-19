@@ -22,7 +22,7 @@ INSERT INTO Coupon (coupon_id, discount_amount, qty, start_date, expired_date) V
 INSERT INTO Addon_Services (service_name, service_cost) VALUES 
 ('Breakfast', 20.00),
 ('Spa', 50.00),
-('Extra bed', 30.00);
+('Insurance', 30.00);
 
 -- Insert Rooms
 INSERT INTO Room (room_number, type_id, room_status) VALUES 
@@ -47,10 +47,4 @@ INSERT INTO Reservation_Addon (reservation_id, addon_id) VALUES
 (3, 2),
 (4, 3);
 
-select * FROM guest;
-select * FROM Reservation;
-select * FROM room_type;
 select * FROM room;
-select * FROM Reservation_AddOn;
-select * FROM Addon_Services;
-select * FROM coupon;
